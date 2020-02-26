@@ -38,6 +38,7 @@ namespace BernEd
         {
             // TODO - Load publishers from API.  --Kris
 
+            int i = 0;
             foreach (Publication publication in Publications)
             {
                 if (!Frames.ContainsKey(publication.PubID)
@@ -45,9 +46,12 @@ namespace BernEd
                     && !FrameLeftSwipes.ContainsKey(publication.PubID)
                     && !FrameRightSwipes.ContainsKey(publication.PubID))
                 {
+                    i++;
+
                     Frames.Add(publication.PubID, new Frame
                     {
                         HasShadow = true,
+                        BackgroundColor = (!(i % 2).Equals(0) ? Color.Blue : Color.DarkBlue),
                         Content = (new Grids.Publisher(publication)).Grid,
                         Padding = 2,
                         StyleId = publication.PubID.ToString()
