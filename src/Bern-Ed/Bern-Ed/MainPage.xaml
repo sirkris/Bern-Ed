@@ -1,0 +1,74 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://xamarin.com/schemas/2014/forms"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:d="http://xamarin.com/schemas/2014/forms/design"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d"
+             BackgroundColor="#00063A"
+             Title="Bern-Ed"
+             x:Class="Bern_Ed.MainPage">
+
+    <StackLayout>
+        <Label Text="Please Select a State:" 
+           HorizontalOptions="Center"
+           VerticalOptions="Start"
+           FontAttributes="Bold"
+           TextColor="White"
+           FontSize="Large" />
+        <ScrollView>
+            <StackLayout>
+                <Button x:Name="Alabama" Text="Alabama" TextColor="Yellow" BackgroundColor="Blue" Clicked="State_Clicked" HorizontalOptions="FillAndExpand" VerticalOptions="Start" FontAttributes="Bold" />
+                <Button x:Name="Alaska" Text="Alaska" TextColor="Yellow" BackgroundColor="DarkBlue" Clicked="State_Clicked" HorizontalOptions="FillAndExpand" VerticalOptions="Start" FontAttributes="Bold" />
+                <Button x:Name="Arizona" Text="Arizona" TextColor="Yellow" BackgroundColor="Blue" Clicked="State_Clicked" HorizontalOptions="FillAndExpand" VerticalOptions="Start" FontAttributes="Bold" />
+                <Button x:Name="Arkansas" Text="Arkansas" TextColor="Yellow" BackgroundColor="DarkBlue" Clicked="State_Clicked" HorizontalOptions="FillAndExpand" VerticalOptions="Start" FontAttributes="Bold" />
+                <Button x:Name="California" Text="California" TextColor="Yellow" BackgroundColor="Blue" Clicked="State_Clicked" HorizontalOptions="FillAndExpand" VerticalOptions="Start" FontAttributes="Bold" />
+                <Button x:Name="Colorado" Text="Colorado" TextColor="Yellow" BackgroundColor="DarkBlue" Clicked="State_Clicked" HorizontalOptions="FillAndExpand" VerticalOptions="Start" FontAttributes="Bold" />
+                <Button x:Name="Connecticut" Text="Connecticut" TextColor="Yellow" BackgroundColor="Blue" Clicked="State_Clicked" HorizontalOptions="FillAndExpand" VerticalOptions="Start" FontAttributes="Bold" />
+                <Button x:Name="Delaware" Text="Delaware" TextColor="Yellow" BackgroundColor="DarkBlue" Clicked="State_Clicked" HorizontalOptions="FillAndExpand" VerticalOptions="Start" FontAttributes="Bold" />
+                <Button x:Name="Florida" Text="Florida" TextColor="Yellow" BackgroundColor="Blue" Clicked="State_Clicked" HorizontalOptions="FillAndExpand" VerticalOptions="Start" FontAttributes="Bold" />
+                <Button x:Name="Georgia" Text="Georgia" TextColor="Yellow" BackgroundColor="DarkBlue" Clicked="State_Clicked" HorizontalOptions="FillAndExpand" VerticalOptions="Start" FontAttributes="Bold" />
+                <Button x:Name="Hawaii" Text="Hawaii" TextColor="Yellow" BackgroundColor="Blue" Clicked="State_Clicked" HorizontalOptions="FillAndExpand" VerticalOptions="Start" FontAttributes="Bold" />
+                <Button x:Name="Idaho" Text="Idaho" TextColor="Yellow" BackgroundColor="DarkBlue" Clicked="State_Clicked" HorizontalOptions="FillAndExpand" VerticalOptions="Start" FontAttributes="Bold" />
+                <Button x:Name="Illinois" Text="Illinois" TextColor="Yellow" BackgroundColor="Blue" Clicked="State_Clicked" HorizontalOptions="FillAndExpand" VerticalOptions="Start" FontAttributes="Bold" />
+                <Button x:Name="Indiana" Text="Indiana" TextColor="Yellow" BackgroundColor="DarkBlue" Clicked="State_Clicked" HorizontalOptions="FillAndExpand" VerticalOptions="Start" FontAttributes="Bold" />
+                <Button x:Name="Iowa" Text="Iowa" TextColor="Yellow" BackgroundColor="Blue" Clicked="State_Clicked" HorizontalOptions="FillAndExpand" VerticalOptions="Start" FontAttributes="Bold" />
+                <Button x:Name="Kansas" Text="Kansas" TextColor="Yellow" BackgroundColor="DarkBlue" Clicked="State_Clicked" HorizontalOptions="FillAndExpand" VerticalOptions="Start" FontAttributes="Bold" />
+                <Button x:Name="Kentucky" Text="Kentucky" TextColor="Yellow" BackgroundColor="Blue" Clicked="State_Clicked" HorizontalOptions="FillAndExpand" VerticalOptions="Start" FontAttributes="Bold" />
+                <Button x:Name="Louisiana" Text="Louisiana" TextColor="Yellow" BackgroundColor="DarkBlue" Clicked="State_Clicked" HorizontalOptions="FillAndExpand" VerticalOptions="Start" FontAttributes="Bold" />
+                <Button x:Name="Maine" Text="Maine" TextColor="Yellow" BackgroundColor="Blue" Clicked="State_Clicked" HorizontalOptions="FillAndExpand" VerticalOptions="Start" FontAttributes="Bold" />
+                <Button x:Name="Maryland" Text="Maryland" TextColor="Yellow" BackgroundColor="DarkBlue" Clicked="State_Clicked" HorizontalOptions="FillAndExpand" VerticalOptions="Start" FontAttributes="Bold" />
+                <Button x:Name="Massachusetts" Text="Massachusetts" TextColor="Yellow" BackgroundColor="Blue" Clicked="State_Clicked" HorizontalOptions="FillAndExpand" VerticalOptions="Start" FontAttributes="Bold" />
+                <Button x:Name="Michigan" Text="Michigan" TextColor="Yellow" BackgroundColor="DarkBlue" Clicked="State_Clicked" HorizontalOptions="FillAndExpand" VerticalOptions="Start" FontAttributes="Bold" />
+                <Button x:Name="Minnesota" Text="Minnesota" TextColor="Yellow" BackgroundColor="Blue" Clicked="State_Clicked" HorizontalOptions="FillAndExpand" VerticalOptions="Start" FontAttributes="Bold" />
+                <Button x:Name="Mississippi" Text="Mississippi" TextColor="Yellow" BackgroundColor="DarkBlue" Clicked="State_Clicked" HorizontalOptions="FillAndExpand" VerticalOptions="Start" FontAttributes="Bold" />
+                <Button x:Name="Missouri" Text="Missouri" TextColor="Yellow" BackgroundColor="Blue" Clicked="State_Clicked" HorizontalOptions="FillAndExpand" VerticalOptions="Start" FontAttributes="Bold" />
+                <Button x:Name="Montana" Text="Montana" TextColor="Yellow" BackgroundColor="DarkBlue" Clicked="State_Clicked" HorizontalOptions="FillAndExpand" VerticalOptions="Start" FontAttributes="Bold" />
+                <Button x:Name="Nebraska" Text="Nebraska" TextColor="Yellow" BackgroundColor="Blue" Clicked="State_Clicked" HorizontalOptions="FillAndExpand" VerticalOptions="Start" FontAttributes="Bold" />
+                <Button x:Name="Nevada" Text="Nevada" TextColor="Yellow" BackgroundColor="DarkBlue" Clicked="State_Clicked" HorizontalOptions="FillAndExpand" VerticalOptions="Start" FontAttributes="Bold" />
+                <Button x:Name="NewHampshire" Text="New Hampshire" TextColor="Yellow" BackgroundColor="Blue" Clicked="State_Clicked" HorizontalOptions="FillAndExpand" VerticalOptions="Start" FontAttributes="Bold" />
+                <Button x:Name="NewJersey" Text="New Jersey" TextColor="Yellow" BackgroundColor="DarkBlue" Clicked="State_Clicked" HorizontalOptions="FillAndExpand" VerticalOptions="Start" FontAttributes="Bold" />
+                <Button x:Name="NewMexico" Text="New Mexico" TextColor="Yellow" BackgroundColor="Blue" Clicked="State_Clicked" HorizontalOptions="FillAndExpand" VerticalOptions="Start" FontAttributes="Bold" />
+                <Button x:Name="NewYork" Text="New York" TextColor="Yellow" BackgroundColor="DarkBlue" Clicked="State_Clicked" HorizontalOptions="FillAndExpand" VerticalOptions="Start" FontAttributes="Bold" />
+                <Button x:Name="NorthCarolina" Text="North Carolina" TextColor="Yellow" BackgroundColor="Blue" Clicked="State_Clicked" HorizontalOptions="FillAndExpand" VerticalOptions="Start" FontAttributes="Bold" />
+                <Button x:Name="NorthDakota" Text="North Dakota" TextColor="Yellow" BackgroundColor="DarkBlue" Clicked="State_Clicked" HorizontalOptions="FillAndExpand" VerticalOptions="Start" FontAttributes="Bold" />
+                <Button x:Name="Ohio" Text="Ohio" TextColor="Yellow" BackgroundColor="Blue" Clicked="State_Clicked" HorizontalOptions="FillAndExpand" VerticalOptions="Start" FontAttributes="Bold" />
+                <Button x:Name="Oklahoma" Text="Oklahoma" TextColor="Yellow" BackgroundColor="DarkBlue" Clicked="State_Clicked" HorizontalOptions="FillAndExpand" VerticalOptions="Start" FontAttributes="Bold" />
+                <Button x:Name="Oregon" Text="Oregon" TextColor="Yellow" BackgroundColor="Blue" Clicked="State_Clicked" HorizontalOptions="FillAndExpand" VerticalOptions="Start" FontAttributes="Bold" />
+                <Button x:Name="Pennsylvania" Text="Pennsylvania" TextColor="Yellow" BackgroundColor="DarkBlue" Clicked="State_Clicked" HorizontalOptions="FillAndExpand" VerticalOptions="Start" FontAttributes="Bold" />
+                <Button x:Name="RhodeIsland" Text="Rhode Island" TextColor="Yellow" BackgroundColor="Blue" Clicked="State_Clicked" HorizontalOptions="FillAndExpand" VerticalOptions="Start" FontAttributes="Bold" />
+                <Button x:Name="SouthCarolina" Text="South Carolina" TextColor="Yellow" BackgroundColor="DarkBlue" Clicked="State_Clicked" HorizontalOptions="FillAndExpand" VerticalOptions="Start" FontAttributes="Bold" />
+                <Button x:Name="SouthDakota" Text="South Dakota" TextColor="Yellow" BackgroundColor="Blue" Clicked="State_Clicked" HorizontalOptions="FillAndExpand" VerticalOptions="Start" FontAttributes="Bold" />
+                <Button x:Name="Tennessee" Text="Tennessee" TextColor="Yellow" BackgroundColor="DarkBlue" Clicked="State_Clicked" HorizontalOptions="FillAndExpand" VerticalOptions="Start" FontAttributes="Bold" />
+                <Button x:Name="Texas" Text="Texas" TextColor="Yellow" BackgroundColor="Blue" Clicked="State_Clicked" HorizontalOptions="FillAndExpand" VerticalOptions="Start" FontAttributes="Bold" />
+                <Button x:Name="Utah" Text="Utah" TextColor="Yellow" BackgroundColor="DarkBlue" Clicked="State_Clicked" HorizontalOptions="FillAndExpand" VerticalOptions="Start" FontAttributes="Bold" />
+                <Button x:Name="Vermont" Text="Vermont" TextColor="Yellow" BackgroundColor="Blue" Clicked="State_Clicked" HorizontalOptions="FillAndExpand" VerticalOptions="Start" FontAttributes="Bold" />
+                <Button x:Name="Virginia" Text="Virginia" TextColor="Yellow" BackgroundColor="DarkBlue" Clicked="State_Clicked" HorizontalOptions="FillAndExpand" VerticalOptions="Start" FontAttributes="Bold" />
+                <Button x:Name="Washington" Text="Washington" TextColor="Yellow" BackgroundColor="Blue" Clicked="State_Clicked" HorizontalOptions="FillAndExpand" VerticalOptions="Start" FontAttributes="Bold" />
+                <Button x:Name="WestVirginia" Text="West Virginia" TextColor="Yellow" BackgroundColor="DarkBlue" Clicked="State_Clicked" HorizontalOptions="FillAndExpand" VerticalOptions="Start" FontAttributes="Bold" />
+                <Button x:Name="Wisconsin" Text="Wisconsin" TextColor="Yellow" BackgroundColor="Blue" Clicked="State_Clicked" HorizontalOptions="FillAndExpand" VerticalOptions="Start" FontAttributes="Bold" />
+                <Button x:Name="Wyoming" Text="Wyoming" TextColor="Yellow" BackgroundColor="DarkBlue" Clicked="State_Clicked" HorizontalOptions="FillAndExpand" VerticalOptions="Start" FontAttributes="Bold" />
+            </StackLayout>
+        </ScrollView>
+    </StackLayout>
+
+</ContentPage>
