@@ -1,8 +1,8 @@
-﻿using BernEd.Converters;
+﻿using Bern_Ed.Converters;
 using Newtonsoft.Json;
 using System;
 
-namespace BernEd.Structures
+namespace Bern_Ed.Structures
 {
     [Serializable]
     public class Publication
@@ -32,7 +32,7 @@ namespace BernEd.Structures
         public string POC { get; set; }
 
         [JsonProperty("wordLimit")]
-        public int WordLimit { get; set; }
+        public int? WordLimit { get; set; }
 
         [JsonProperty("daysWaitAfterPublish")]
         public int DaysWaitAfterPublish { get; set; }

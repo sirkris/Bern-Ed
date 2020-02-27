@@ -3,7 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace BernEd.Converters
+namespace Bern_Ed.Converters
 {
     class IntBoolConvert : JsonConverter
     {

@@ -6,7 +6,7 @@
              mc:Ignorable="d"
              BackgroundColor="#00063A"
              Title="Publishers"
-             x:Class="BernEd.PublishersByState">
+             x:Class="Bern_Ed.PublishersByState">
     <ContentPage.Content>
         <StackLayout>
             <Label Text="Publishers:" 

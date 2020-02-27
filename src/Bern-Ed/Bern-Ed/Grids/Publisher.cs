@@ -1,7 +1,7 @@
-﻿using BernEd.Structures;
+﻿using Bern_Ed.Structures;
 using Xamarin.Forms;
 
-namespace BernEd.Grids
+namespace Bern_Ed.Grids
 {
     public class Publisher
     {
@@ -27,7 +27,17 @@ namespace BernEd.Grids
                     FontSize = Device.GetNamedSize(NamedSize.Small, typeof(Label)),
                     FontAttributes = FontAttributes.Bold,
                     VerticalOptions = LayoutOptions.StartAndExpand
-                }, 0, 2, 0, 1);
+                }, 0, 0);
+
+            Grid.Children.Add(
+                new Label
+                {
+                    Text = publication.City + ", " + publication.StateAbbr,
+                    TextColor = Color.Gold,
+                    FontSize = Device.GetNamedSize(NamedSize.Small, typeof(Label)),
+                    FontAttributes = FontAttributes.Italic,
+                    VerticalOptions = LayoutOptions.StartAndExpand
+                }, 1, 0);
 
             Grid.Children.Add(
                 new Label

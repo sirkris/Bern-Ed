@@ -20,7 +20,7 @@ namespace Bern_Ed
 
         private void State_Clicked(object sender, EventArgs e)
         {
-
+            Navigation.PushAsync(new PublishersByState(((Button)sender).Text));
         }
     }
 }
