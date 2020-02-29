@@ -1,0 +1,27 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://xamarin.com/schemas/2014/forms"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:d="http://xamarin.com/schemas/2014/forms/design"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d"
+             BackgroundColor="White"
+             Title="Publisher Details"
+             x:Class="Bern_Ed.PublisherDetails">
+    <ContentPage.Content>
+        <StackLayout>
+            <Label Text="" 
+               x:Name="Label_Name"
+               HorizontalOptions="Center"
+               VerticalOptions="Start"
+               FontAttributes="Bold"
+               TextColor="Black"
+               FontSize="Large" />
+            <ScrollView VerticalOptions="CenterAndExpand">
+                <StackLayout x:Name="StackLayout_PublisherDetails" VerticalOptions="Center">
+                    <!-- Content is generated.  -->
+                </StackLayout>
+            </ScrollView>
+            <Button Text="Report Changes" HorizontalOptions="Center" VerticalOptions="EndAndExpand" Clicked="Button_Clicked" />
+        </StackLayout>
+    </ContentPage.Content>
+</ContentPage>

@@ -2,6 +2,7 @@
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using Xamarin.Essentials;
 using Xamarin.Forms;
 using Xamarin.Forms.Xaml;
 
@@ -123,7 +124,7 @@ namespace Bern_Ed
             }
             set { }
         }
-        private IList<Publication> Publications { get; set; }
+        private IDictionary<int, Publication> Publications { get; set; }
 
         private IDictionary<int, Frame> Frames;
 
@@ -140,6 +141,8 @@ namespace Bern_Ed
             State = state;
             HeaderLabel.Text = "Publishers in " + State + ":";
 
+            Publications = new Dictionary<int, Publication>();
+
             Frames = new Dictionary<int, Frame>();
 
             FrameTaps = new Dictionary<int, TapGestureRecognizer>();
@@ -154,18 +157,23 @@ namespace Bern_Ed
         private void PopulatePublishers()
         {
             // Load publishers from the API.  --Kris
-            Publications = JsonConvert.DeserializeObject<IList<Publication>>(Request.ExecuteRequest(Request.Prepare("/opmail/publications?stateAbbr=" + StateAbbr)));
+            IList<Publication> publications = JsonConvert.DeserializeObject<IList<Publication>>(Request.ExecuteRequest(Request.Prepare("/opmail/publications?enabled=1&stateAbbr=" + StateAbbr)));
 
             int i = 0;
-            foreach (Publication publication in Publications)
+            foreach (Publication publication in publications)
             {
+                if (!Publications.ContainsKey(publication.PubID))
+                {
+                    Publications.Add(publication.PubID, publication);
+                }
+
                 if (!Frames.ContainsKey(publication.PubID)
                     && !FrameTaps.ContainsKey(publication.PubID)
                     && !FrameLeftSwipes.ContainsKey(publication.PubID)
                     && !FrameRightSwipes.ContainsKey(publication.PubID))
                 {
                     i++;
-
+                    
                     Frames.Add(publication.PubID, new Frame
                     {
                         HasShadow = true,
@@ -195,17 +203,63 @@ namespace Bern_Ed
 
         private void Frame_Clicked(object sender, EventArgs e)
         {
-            // TODO - Open detail page.  --Kris
+            try
+            {
+                int pubId = int.Parse(((Frame)sender).StyleId);
+                Navigation.PushAsync(new PublisherDetails(Publications[pubId]));
+            }
+            catch (Exception) { }
         }
 
         private void FrameSwiped_Left(object sender, EventArgs e)
         {
-            // TODO - Call phone number.  --Kris
+            // Call phone number.  --Kris
+            int? pubId = null;
+            try
+            {
+                pubId = int.Parse(((Frame)sender).StyleId);
+            }
+            catch (Exception) { }
+
+            if (pubId.HasValue
+                && Publications.ContainsKey(pubId.Value)
+                && !string.IsNullOrWhiteSpace(Publications[pubId.Value].Phone))
+            {
+                try
+                {
+                    PhoneDialer.Open(Publications[pubId.Value].Phone);
+                }
+                catch (ArgumentNullException ex)
+                {
+                    DisplayAlert("Phone Dialer Error", "Phone number was null or empty : " + ex.Message, "Ok");
+                }
+                catch (FeatureNotSupportedException ex)
+                {
+                    DisplayAlert("Phone Dialer Error", "Phone does not support this feature : " + ex.Message, "Ok");
+                }
+                catch (Exception ex)
+                {
+                    DisplayAlert("Phone Dialer Error", "An error has occurred : " + ex.Message, "Ok");
+                }
+            }
         }
 
         private void FrameSwiped_Right(object sender, EventArgs e)
         {
-            // TODO - Prepare email.  --Kris
+            // Prepare email.  --Kris
+            int? pubId = null;
+            try
+            {
+                pubId = int.Parse(((Frame)sender).StyleId);
+            }
+            catch (Exception) { }
+
+            if (pubId.HasValue
+                && Publications.ContainsKey(pubId.Value)
+                && !string.IsNullOrWhiteSpace(Publications[pubId.Value].Email))
+            {
+                Launcher.OpenAsync("mailto:" + Publications[pubId.Value].Email);
+            }
         }
     }
 }
