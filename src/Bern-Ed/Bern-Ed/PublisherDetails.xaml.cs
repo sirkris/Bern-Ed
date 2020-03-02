@@ -1,10 +1,6 @@
 ﻿using Bern_Ed.Grids;
 using Bern_Ed.Structures;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 using Xamarin.Forms;
 using Xamarin.Forms.Xaml;
@@ -33,7 +29,7 @@ namespace Bern_Ed
 
         private void Button_Clicked(object sender, EventArgs e)
         {
-            // TODO
+            Navigation.PushAsync(new EditPublisher(Publication));
         }
     }
 }
