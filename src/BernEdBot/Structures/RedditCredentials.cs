@@ -15,6 +15,7 @@ namespace BernEdBot.Structures
             }
             private set { }
         }
+
         public string Username { get; set; }
         public string AccessToken { get; set; }
         public string RefreshToken { get; set; }
@@ -37,18 +38,11 @@ namespace BernEdBot.Structures
 
             if (autoLoad)
             {
-                string path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), CredentialsFilename);
+                string path = Path.Combine(Environment.CurrentDirectory, CredentialsFilename);
                 if (!File.Exists(path))
                 {
-                    try
-                    {
-                        File.Copy(Path.Combine(Environment.CurrentDirectory, CredentialsFilename), path);
-                    }
-                    catch (Exception)
-                    {
-                        // If we can't find the resource file, just re-create it.  --Kris
-                        File.WriteAllText(path, JsonConvert.SerializeObject(new RedditCredentials()));
-                    }
+                    // If we can't find the resource file, just re-create it.  --Kris
+                    File.WriteAllText(path, JsonConvert.SerializeObject(new RedditCredentials(autoLoad: false)));
                 }
 
                 try
@@ -59,7 +53,7 @@ namespace BernEdBot.Structures
 
                 if (string.IsNullOrWhiteSpace(ConfigJSON))
                 {
-                    throw new Exception("Please add credentials to RedditCredentials.json before proceeding.");
+                    throw new Exception("Please populate RedditCredentials.json before proceeding.");
                 }
                 else
                 {
@@ -68,6 +62,12 @@ namespace BernEdBot.Structures
                     Username = redditCredentials.Username;
                     AccessToken = redditCredentials.AccessToken;
                     RefreshToken = redditCredentials.RefreshToken;
+
+                    if (string.IsNullOrWhiteSpace(redditCredentials.RefreshToken))
+                    {
+                        Save();
+                        throw new Exception("Please add credentials to RedditCredentials.json before proceeding.");
+                    }
                 }
             }
         }
@@ -86,7 +86,7 @@ namespace BernEdBot.Structures
 
         public void Save()
         {
-            File.WriteAllText(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), CredentialsFilename), JsonConvert.SerializeObject(this));
+            File.WriteAllText(Path.Combine(Environment.CurrentDirectory, CredentialsFilename), JsonConvert.SerializeObject(this));
         }
     }
 }

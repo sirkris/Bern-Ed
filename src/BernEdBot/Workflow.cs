@@ -14,7 +14,8 @@ namespace BernEdBot
         {
             get
             {
-                if (redditClient == null)
+                if (redditClient == null 
+                    && !string.IsNullOrWhiteSpace(RedditCredentials.RefreshToken))
                 {
                     redditClient = new RedditClient(appId: RedditCredentials.AppId, refreshToken: RedditCredentials.RefreshToken, accessToken: RedditCredentials.AccessToken,
                         userAgent: "BernEdBot v" + GetVersion());
@@ -47,7 +48,13 @@ namespace BernEdBot
         }
         private RedditCredentials redditCredentials;
 
-        public Workflow() { }
+        public Workflow()
+        {
+            if (RedditClient == null)
+            {
+                throw new Exception("Unable to load Reddit client!");
+            }
+        }
 
         public void MainLoop()
         {
