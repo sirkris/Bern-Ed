@@ -1,24 +1,29 @@
-﻿using Newtonsoft.Json;
+﻿using BernEdBot.Structures;
+using Newtonsoft.Json;
 using RestSharp;
 using System;
 using System.Collections.Generic;
+using System.Text;
 using System.Threading;
 
-namespace Bern_Ed
+namespace BernEdBot
 {
     public class Request
     {
         public RestClient RestClient { get; set; }
+        private BirdieCredentials BirdieCredentials { get; set; }
 
         public Request()
         {
             RestClient = new RestClient("http://upcoalition.ourproject.org/");
+            BirdieCredentials = new BirdieCredentials();
         }
 
         public RestRequest Prepare(string url, Method method, List<Parameter> parameters, List<FileParameter> files, string contentType = "application/x-www-form-urlencoded")
         {
             RestRequest restRequest = new RestRequest(url, method);
 
+            restRequest.AddHeader("Authorization", "Basic " + Convert.ToBase64String(Encoding.UTF8.GetBytes(BirdieCredentials.Username + ":" + BirdieCredentials.Password)));
             if (restRequest.Method == Method.POST || restRequest.Method == Method.PUT)
             {
                 restRequest.AddHeader("Content-Type", contentType);

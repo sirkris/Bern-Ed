@@ -1,9 +1,16 @@
 ﻿using BernEdBot.Structures;
+using Newtonsoft.Json;
 using Reddit;
+using Reddit.Controllers;
+using Reddit.Controllers.EventArgs;
+using RestSharp;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Reflection;
 using System.Text;
+using System.Text.RegularExpressions;
+using System.Threading;
 
 namespace BernEdBot
 {
@@ -48,21 +55,597 @@ namespace BernEdBot
         }
         private RedditCredentials redditCredentials;
 
+        private IList<PublicationUpdateRequest> RequestQueue
+        {
+            get
+            {
+                if (requestQueue == null
+                    || requestQueue.Count.Equals(0)
+                    || !RequestQueueLastUpdated.HasValue
+                    || RequestQueueLastUpdated.Value.AddMinutes(15) < DateTime.Now)
+                {
+                    RequestQueue = JsonConvert.DeserializeObject<IList<PublicationUpdateRequest>>(Request.ExecuteRequest(Request.Prepare("/berned/pubChangeRequest?getQueue")));
+                }
+
+                return requestQueue;
+            }
+            set
+            {
+                requestQueue = value;
+                RequestQueueLastUpdated = DateTime.Now;
+            }
+        }
+        private IList<PublicationUpdateRequest> requestQueue;
+        private DateTime? RequestQueueLastUpdated { get; set; }
+
+        private DateTime? LastPostClean { get; set; }
+        private DateTime? LastApprovalCheck { get; set; }
+
+        private Request Request { get; set; }
+        private Subreddit Subreddit { get; set; }
+
+        // Indexed by RequestID.  --Kris
+        private IDictionary<int, SelfPost> Posts { get; set; }
+
+        private IDictionary<string, int> RequestIdsByPostId { get; set; }
+
+        private const string SUBREDDIT = "FreeOpinionSyndicate";
+        private const string POST_TITLE_PREFIX = "NEW PUBLISHER UPDATE REPORT: ";
+        private const int MAX_ACTIVE_POSTS = 3;
+
+        private string NEWLINE
+        {
+            get
+            {
+                return (Environment.NewLine + Environment.NewLine);
+            }
+            set { }
+        }
+
         public Workflow()
         {
             if (RedditClient == null)
             {
                 throw new Exception("Unable to load Reddit client!");
             }
+
+            Posts = new Dictionary<int, SelfPost>();
+            RequestIdsByPostId = new Dictionary<string, int>();
+            Request = new Request();
+            Subreddit = RedditClient.Subreddit(SUBREDDIT);
         }
 
         public void MainLoop()
         {
+            // Check Reddit for any existing posts to monitor.  --Kris
+            ScanPosts();
+
             Active = true;
             while (Active)
             {
-                // TODO
+                CleanPosts();
+                CheckPostApprovals();
+                ExecuteQueue();
+
+                Thread.Sleep(60000);
             }
+
+            IList<int> keys = new List<int>();
+            foreach (int requestId in Posts.Keys)
+            {
+                keys.Add(requestId);
+            }
+
+            foreach (int requestId in keys)
+            {
+                UnmonitorPost(requestId);
+            }
+        }
+
+        private void ExecuteQueue()
+        {
+            if (RequestQueue != null 
+                && Posts.Count <= MAX_ACTIVE_POSTS)
+            {
+                foreach (PublicationUpdateRequest publicationUpdateRequest in RequestQueue)
+                {
+                    MonitorPost(CreatePost(publicationUpdateRequest), publicationUpdateRequest.RequestId);
+                    if (Posts.Count.Equals(MAX_ACTIVE_POSTS))
+                    {
+                        break;
+                    }
+                }
+            }
+        }
+
+        private SelfPost CreatePost(PublicationUpdateRequest publicationUpdateRequest)
+        {
+            string body = "## " + publicationUpdateRequest.OldPublication.Name + NEWLINE;
+
+            body += "### Proposed Changes" + NEWLINE;
+            body += GetChanges(publicationUpdateRequest) + NEWLINE;
+
+            body += "### Raw Data" + NEWLINE;
+            body += "```" + NEWLINE + GetRawData(publicationUpdateRequest) + NEWLINE + "```" + NEWLINE;
+
+            body += "### Instructions" + NEWLINE;
+            body += GetInstructions() + NEWLINE;
+
+            body += "**Thank you for helping to keep this public database accurate and up-to-date!**";
+
+            SelfPost res = Subreddit.SelfPost(POST_TITLE_PREFIX + publicationUpdateRequest.OldPublication.Name, body).Submit();
+
+            res.Distinguish("yes");
+            UpdateRequest(publicationUpdateRequest.RequestId, res.Id);
+
+            return res;
+        }
+
+        private string GetChanges(PublicationUpdateRequest publicationUpdateRequest)
+        {
+            string res = "";
+            if (publicationUpdateRequest.OldPublication == null || publicationUpdateRequest.NewPublication == null
+                || !publicationUpdateRequest.OldPublication.PubID.Equals(publicationUpdateRequest.NewPublication.PubID)
+                || !publicationUpdateRequest.OldPublication.Name.Equals(publicationUpdateRequest.NewPublication.Name))
+            {
+                return "**THE DATA FROM THIS REQUEST IS CORRUPTED!  PLEASE REJECT TO AVOID COMPROMISING DATA INTEGRITY!**";
+            }
+
+            if (!publicationUpdateRequest.OldPublication.City.Equals(publicationUpdateRequest.NewPublication.City))
+            {
+                res += "#### City" + NEWLINE;
+                res += "~~" + publicationUpdateRequest.OldPublication.City + "~~" + NEWLINE;
+                res += "**" + publicationUpdateRequest.NewPublication.City + "**" + NEWLINE;
+            }
+
+            if (!publicationUpdateRequest.OldPublication.StateAbbr.Equals(publicationUpdateRequest.NewPublication.StateAbbr))
+            {
+                res += "#### State" + NEWLINE;
+                res += "~~" + publicationUpdateRequest.OldPublication.StateAbbr + "~~" + NEWLINE;
+                res += "**" + publicationUpdateRequest.NewPublication.StateAbbr + "**" + NEWLINE;
+            }
+
+            if (!publicationUpdateRequest.OldPublication.Email.Equals(publicationUpdateRequest.NewPublication.Email))
+            {
+                res += "#### Email" + NEWLINE;
+                res += "~~" + publicationUpdateRequest.OldPublication.Email + "~~" + NEWLINE;
+                res += "**" + publicationUpdateRequest.NewPublication.Email + "**" + NEWLINE;
+            }
+
+            if (!publicationUpdateRequest.OldPublication.Phone.Equals(publicationUpdateRequest.NewPublication.Phone))
+            {
+                res += "#### Phone" + NEWLINE;
+                res += "~~" + publicationUpdateRequest.OldPublication.Phone + "~~" + NEWLINE;
+                res += "**" + publicationUpdateRequest.NewPublication.Phone + "**" + NEWLINE;
+            }
+
+            if (!publicationUpdateRequest.OldPublication.POCTitle.Equals(publicationUpdateRequest.NewPublication.POCTitle))
+            {
+                res += "#### Contact Title" + NEWLINE;
+                res += "~~" + publicationUpdateRequest.OldPublication.POCTitle + "~~" + NEWLINE;
+                res += "**" + publicationUpdateRequest.NewPublication.POCTitle + "**" + NEWLINE;
+            }
+
+            if (!publicationUpdateRequest.OldPublication.POC.Equals(publicationUpdateRequest.NewPublication.POC))
+            {
+                res += "#### Contact Name" + NEWLINE;
+                res += "~~" + publicationUpdateRequest.OldPublication.POC + "~~" + NEWLINE;
+                res += "**" + publicationUpdateRequest.NewPublication.POC + "**" + NEWLINE;
+            }
+
+            if (!publicationUpdateRequest.OldPublication.WordLimit.Equals(publicationUpdateRequest.NewPublication.WordLimit))
+            {
+                res += "#### Word Limit" + NEWLINE;
+                res += (publicationUpdateRequest.OldPublication.WordLimit.HasValue ? "~~" + publicationUpdateRequest.OldPublication.WordLimit + "~~" + NEWLINE : "");
+                res += (publicationUpdateRequest.NewPublication.WordLimit.HasValue ? "**" + publicationUpdateRequest.NewPublication.WordLimit + "**" + NEWLINE : "");
+            }
+
+            if (!publicationUpdateRequest.OldPublication.DaysWaitAfterPublish.Equals(publicationUpdateRequest.NewPublication.DaysWaitAfterPublish))
+            {
+                res += "#### Publish Interval" + NEWLINE;
+                res += "~~" + publicationUpdateRequest.OldPublication.DaysWaitAfterPublish.ToString() + " days" + "~~" + NEWLINE;
+                res += "**" + publicationUpdateRequest.NewPublication.DaysWaitAfterPublish.ToString() + " days" + "**" + NEWLINE;
+            }
+
+            if (!publicationUpdateRequest.OldPublication.City.Equals(publicationUpdateRequest.NewPublication.Notes))
+            {
+                res += "#### Notes" + NEWLINE;
+                res += "~~" + publicationUpdateRequest.OldPublication.Notes + "~~" + NEWLINE;
+                res += "**" + publicationUpdateRequest.NewPublication.Notes + "**" + NEWLINE;
+            }
+
+            if (!publicationUpdateRequest.OldPublication.ContactURL.Equals(publicationUpdateRequest.NewPublication.ContactURL))
+            {
+                res += "#### Source" + NEWLINE;
+                res += "~~" + publicationUpdateRequest.OldPublication.ContactURL + "~~" + NEWLINE;
+                res += "**" + publicationUpdateRequest.NewPublication.ContactURL + "**" + NEWLINE;
+            }
+
+            if (!publicationUpdateRequest.OldPublication.Website.Equals(publicationUpdateRequest.NewPublication.Website))
+            {
+                res += "#### Website" + NEWLINE;
+                res += "~~" + publicationUpdateRequest.OldPublication.Website + "~~" + NEWLINE;
+                res += "**" + publicationUpdateRequest.NewPublication.Website + "**" + NEWLINE;
+            }
+
+            if (!publicationUpdateRequest.OldPublication.RequiresLocalTieIn.Equals(publicationUpdateRequest.NewPublication.RequiresLocalTieIn))
+            {
+                res += "#### Requires Local Tie-In?" + NEWLINE;
+                res += "~~" + (publicationUpdateRequest.OldPublication.RequiresLocalTieIn ? "Yes" : "No") + "~~" + NEWLINE;
+                res += "**" + (publicationUpdateRequest.NewPublication.RequiresLocalTieIn ? "Yes" : "No") + "**" + NEWLINE;
+            }
+
+            if (!publicationUpdateRequest.OldPublication.Enabled.Equals(publicationUpdateRequest.NewPublication.Enabled))
+            {
+                res += "#### Enabled?" + NEWLINE;
+                res += "~~" + (publicationUpdateRequest.OldPublication.Enabled ? "Yes" : "No") + "~~" + NEWLINE;
+                res += "**" + (publicationUpdateRequest.NewPublication.Enabled ? "Yes" : "No") + "**" + NEWLINE;
+            }
+
+            if (string.IsNullOrEmpty(res))
+            {
+                res = "**There are no proposed changes.  This request was likely submitted by mistake and should be rejected.**";
+            }
+
+            return res;
+        }
+
+        private string GetRawData(PublicationUpdateRequest publicationUpdateRequest)
+        {
+            publicationUpdateRequest.IP = "(hidden)";
+            return JsonConvert.SerializeObject(publicationUpdateRequest);
+        }
+
+        private string GetInstructions()
+        {
+            return File.ReadAllText(Path.Combine(Environment.CurrentDirectory, "PostInstructions.md"));
+        }
+
+        private void ScanPosts()
+        {
+            foreach (Post post in Subreddit.Posts.GetNew(limit: 100))
+            {
+                if (IsActiveReportPost(post, out PublicationUpdateRequest publicationUpdateRequest))
+                {
+                    MonitorPost((SelfPost)post, publicationUpdateRequest.RequestId);
+                }
+            }
+        }
+
+        private void MonitorPost(SelfPost post, int requestId)
+        {
+            if (post != null)
+            {
+                post.PostDataUpdated += C_PostUpdated;
+                post.MonitorPostData(monitoringBaseDelayMs: 15000);
+
+                post.PostScoreUpdated += C_PostUpdated;
+                post.MonitorPostScore(monitoringBaseDelayMs: 15000);
+
+                Posts.Add(requestId, post);
+                RequestIdsByPostId.Add(post.Id, requestId);
+            }
+        }
+
+        private void UnmonitorPost(int requestId)
+        {
+            if (Posts.ContainsKey(requestId))
+            {
+                Posts[requestId].MonitorPostData();
+                Posts[requestId].PostDataUpdated -= C_PostUpdated;
+
+                Posts[requestId].MonitorPostScore();
+                Posts[requestId].PostScoreUpdated -= C_PostUpdated;
+
+                Posts.Remove(requestId);
+            }
+        }
+
+        private void UnmonitorPost(Post post)
+        {
+            int? requestId = null;
+            foreach (KeyValuePair<int, SelfPost> pair in Posts)
+            {
+                if (pair.Value.Id.Equals(post.Id))
+                {
+                    requestId = pair.Key;
+                    break;
+                }
+            }
+
+            if (requestId.HasValue)
+            {
+                UnmonitorPost(requestId.Value);
+            }
+        }
+
+        private void CleanPosts()
+        {
+            if (!LastPostClean.HasValue
+                || LastPostClean.Value.AddHours(1) < DateTime.Now)
+            {
+                IList<int> removeIds = new List<int>();
+                foreach (KeyValuePair<int, SelfPost> pair in Posts)
+                {
+                    string res = Request.ExecuteRequest(Request.Prepare("/berned/pubChangeRequest?requestId=" + pair.Key.ToString()));
+                    if (string.IsNullOrWhiteSpace(res))
+                    {
+                        removeIds.Add(pair.Key);
+                    }
+                    else
+                    {
+
+                        PublicationUpdateRequest publicationUpdateRequest = null;
+                        try
+                        {
+                            publicationUpdateRequest = JsonConvert.DeserializeObject<PublicationUpdateRequest>(res);
+                        }
+                        catch (Exception) { }
+
+                        PublicationUpdateRequest report = GetReportData(pair.Value);
+                        if (report == null
+                            || !report.Equals(publicationUpdateRequest))
+                        {
+                            removeIds.Add(pair.Key);
+                        }
+                    }
+                }
+
+                foreach (int removeId in removeIds)
+                {
+                    UnmonitorPost(removeId);
+                }
+
+                LastPostClean = DateTime.Now;
+            }
+        }
+
+        // Manually scans the posts for any that meet the criteria.  Neccessary because changes to "approved" won't show up in Reddit.NET standard monitoring.  --Kris
+        private void CheckPostApprovals()
+        {
+            if (!LastApprovalCheck.HasValue
+                || LastApprovalCheck.Value.AddHours(1) < DateTime.Now)
+            {
+                IList<int> removeIds = new List<int>();
+                foreach (KeyValuePair<int, SelfPost> pair in Posts)
+                {
+                    if (CheckPostIsReady(pair.Value))
+                    {
+                        removeIds.Add(pair.Key);
+                    }
+                }
+
+                foreach (int removeId in removeIds)
+                {
+                    UnmonitorPost(removeId);
+                }
+
+                LastApprovalCheck = DateTime.Now;
+            }
+        }
+
+        // Checks to see if the post meets the criteria for approval.  If it does, apply the publisher updates and return true.  --Kris
+        private bool CheckPostIsReady(SelfPost post)
+        {
+            if (PostIsReady(post))
+            {
+                // Update our publisher in the db.  --Kris
+                PublicationUpdateRequest publicationUpdateRequest = GetReportData(post);
+
+                UpdatePublisher(publicationUpdateRequest.OldPublication.PubID,
+                    (!publicationUpdateRequest.OldPublication.Email.Equals(publicationUpdateRequest.NewPublication.Email) ? publicationUpdateRequest.NewPublication.Email : null),
+                    (!publicationUpdateRequest.OldPublication.Phone.Equals(publicationUpdateRequest.NewPublication.Phone) ? publicationUpdateRequest.NewPublication.Phone : null),
+                    (!publicationUpdateRequest.OldPublication.POCTitle.Equals(publicationUpdateRequest.NewPublication.POCTitle) ? publicationUpdateRequest.NewPublication.POCTitle : null),
+                    (!publicationUpdateRequest.OldPublication.POC.Equals(publicationUpdateRequest.NewPublication.POC) ? publicationUpdateRequest.NewPublication.POC : null),
+                    (!publicationUpdateRequest.OldPublication.WordLimit.Equals(publicationUpdateRequest.NewPublication.WordLimit) ? publicationUpdateRequest.NewPublication.WordLimit : null),
+                    (!publicationUpdateRequest.OldPublication.Notes.Equals(publicationUpdateRequest.NewPublication.Notes) ? publicationUpdateRequest.NewPublication.Notes : null),
+                    (!publicationUpdateRequest.OldPublication.RequiresLocalTieIn.Equals(publicationUpdateRequest.NewPublication.RequiresLocalTieIn) 
+                        ? publicationUpdateRequest.NewPublication.RequiresLocalTieIn : (bool?)null),
+                    (!publicationUpdateRequest.OldPublication.DaysWaitAfterPublish.Equals(publicationUpdateRequest.NewPublication.DaysWaitAfterPublish) 
+                        ? publicationUpdateRequest.NewPublication.DaysWaitAfterPublish : (int?)null),
+                    (!publicationUpdateRequest.OldPublication.Website.Equals(publicationUpdateRequest.NewPublication.Website) ? publicationUpdateRequest.NewPublication.Website : null),
+                    (!publicationUpdateRequest.OldPublication.ContactURL.Equals(publicationUpdateRequest.NewPublication.ContactURL) ? publicationUpdateRequest.NewPublication.ContactURL : null),
+                    (!publicationUpdateRequest.OldPublication.City.Equals(publicationUpdateRequest.NewPublication.City) ? publicationUpdateRequest.NewPublication.City : null));
+
+                // Mark the post as applied.  --Kris
+                AcceptPost(post);
+
+                // Update the request.  --Kris
+                UpdateRequest(RequestIdsByPostId[post.Id], post, true);
+
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        // Criteria:  Post must be approved by a moderator, not be removed, not be marked as spam, not be edited, be at least 3 hours old, and have a score > 0 with an upvote ratio > 50%.  --Kris
+        private bool PostIsReady(SelfPost post)
+        {
+            return (post != null
+                && post.Created.AddHours(3) <= DateTime.Now
+                && post.Listing.Approved
+                && !post.Removed 
+                && !post.Spam 
+                && post.Edited.Equals(default)
+                && !post.Listing.LinkFlairText.Equals("REJECTED")
+                && !post.Listing.LinkFlairText.Equals("APPLIED")
+                && post.Score > 0 
+                && post.UpvoteRatio > 0.5);
+        }
+
+        private void UpdatePublisher(int pubId, string email = null, string phone = null, string pocTitle = null, string poc = null, int? wordLimit = null, string notes = null, 
+            bool? requiresLocalTieIn = null, int? daysWaitAfterPublish = null, string webDomain = null, string contactURL = null, string city = null)
+        {
+            RestRequest restRequest = Request.Prepare("/opmail/publications/" + pubId.ToString(), Method.POST);
+
+            if (!string.IsNullOrWhiteSpace(email))
+            {
+                restRequest.AddParameter("email", email);
+            }
+
+            if (!string.IsNullOrWhiteSpace(phone))
+            {
+                restRequest.AddParameter("phone", phone);
+            }
+
+            if (!string.IsNullOrWhiteSpace(pocTitle))
+            {
+                restRequest.AddParameter("pocTitle", pocTitle);
+            }
+
+            if (!string.IsNullOrWhiteSpace(poc))
+            {
+                restRequest.AddParameter("poc", poc);
+            }
+
+            // To unset back to null, pass 0.  --Kris
+            if (wordLimit.HasValue)
+            {
+                restRequest.AddParameter("wordLimit", (!wordLimit.Value.Equals(0) ? wordLimit.Value : (int?)null));
+            }
+
+            if (!string.IsNullOrWhiteSpace(notes))
+            {
+                restRequest.AddParameter("notes", notes);
+            }
+
+            if (requiresLocalTieIn.HasValue)
+            {
+                restRequest.AddParameter("requiresLocalTieIn", requiresLocalTieIn.Value);
+            }
+
+            if (daysWaitAfterPublish.HasValue)
+            {
+                restRequest.AddParameter("daysWaitAfterPublish", daysWaitAfterPublish.Value);
+            }
+
+            if (!string.IsNullOrWhiteSpace(webDomain))
+            {
+                restRequest.AddParameter("webDomain", webDomain);
+            }
+
+            if (!string.IsNullOrWhiteSpace(contactURL))
+            {
+                restRequest.AddParameter("contactURL", contactURL);
+            }
+
+            if (!string.IsNullOrWhiteSpace(city))
+            {
+                restRequest.AddParameter("city", city);
+            }
+
+            Request.ExecuteRequest(restRequest);
+        }
+
+        private void UpdateRequest(int requestId, string redditPostId = null, string redditVerifiedCommentId = null, string approvedBy = null, bool? isSpam = null, bool? applied = null)
+        {
+            RestRequest restRequest = Request.Prepare("/berned/pubChangeRequest/" + requestId.ToString(), Method.PUT);
+
+            if (!string.IsNullOrWhiteSpace(redditPostId))
+            {
+                restRequest.AddParameter("redditPostId", redditPostId);
+            }
+            if (!string.IsNullOrWhiteSpace(redditVerifiedCommentId))
+            {
+                restRequest.AddParameter("redditVerifiedCommentId", redditVerifiedCommentId);
+            }
+            if (!string.IsNullOrWhiteSpace(approvedBy))
+            {
+                restRequest.AddParameter("approvedBy", approvedBy);
+            }
+            if (isSpam.HasValue)
+            {
+                restRequest.AddParameter("isSpam", (isSpam.Value ? "1" : "0"));
+            }
+            if (applied.HasValue)
+            {
+                restRequest.AddParameter("applied", (applied.Value ? "1" : "0"));
+            }
+
+            Request.ExecuteRequest(restRequest);
+        }
+
+        private void UpdateRequest(int requestId, Post post, bool? applied = null)
+        {
+            if (post != null)
+            {
+                UpdateRequest(requestId, redditPostId: post.Id, approvedBy: post.Listing.ApprovedBy, isSpam: post.Spam, applied: applied);
+            }
+        }
+
+        private void AcceptPost(Post post)
+        {
+            post.SetFlair("APPLIED");
+            post.Comment("Update request applied.").Submit();
+        }
+
+        private void RejectPost(Post post)
+        {
+            post.SetFlair("REJECTED");
+            post.Comment("Update request rejected.").Submit();
+        }
+
+        private PublicationUpdateRequest GetReportData(SelfPost post)
+        {
+            PublicationUpdateRequest res = null;
+            if (post != null && !string.IsNullOrWhiteSpace(post.SelfText))
+            {
+                // Report data will be JSON string enclosed in ``` backticks (markdown for code).  --Kris
+                Match m = Regex.Match(post.SelfText, @"(?<=```\n)(.*?)(?=\n```)");
+                if (m != null && m.Success)
+                {
+                    try
+                    {
+                        res = JsonConvert.DeserializeObject<PublicationUpdateRequest>(m.Value);
+                    }
+                    catch (Exception) { }
+                }
+            }
+
+            return res;
+        }
+
+        private PublicationUpdateRequest GetReportData(Post post)
+        {
+            return (post.Listing.IsSelf ? GetReportData((SelfPost)post) : null);
+        }
+
+        private bool IsActiveReportPost(Post post, out PublicationUpdateRequest publicationUpdateRequest)
+        {
+            publicationUpdateRequest = null;
+            if (IsCurrentReportPost(post))
+            {
+                // Query API for publication update request.  --Kris
+                PublicationUpdateRequest report = GetReportData(post);
+                if (report == null)
+                {
+                    return false;
+                }
+
+                string res = Request.ExecuteRequest(Request.Prepare("/berned/pubChangeRequest?requestId=" + report.RequestId));
+                if (!string.IsNullOrWhiteSpace(res))
+                {
+                    publicationUpdateRequest = JsonConvert.DeserializeObject<PublicationUpdateRequest>(res);
+                    return (publicationUpdateRequest != null);
+                }
+            }
+
+            return false;
+        }
+
+        private bool IsCurrentReportPost(Post post)
+        {
+            return (post.Listing.IsSelf
+                && post.Author.Equals(RedditClient.Account.Me.Name)
+                && post.Title.StartsWith(POST_TITLE_PREFIX)
+                && post.Created.AddMonths(1) > DateTime.Now
+                && !post.Spam
+                && !post.Removed
+                && !post.Listing.LinkFlairText.Equals("APPLIED")
+                && !post.Listing.LinkFlairText.Equals("REJECTED"));
         }
 
         /// <summary>
@@ -130,6 +713,38 @@ namespace BernEdBot
             }
 
             return res;
+        }
+
+        // Both data and score monitors will end up here.  --Kris
+        public void C_PostUpdated(object sender, PostUpdateEventArgs e)
+        {
+            if (e.NewPost != null)
+            {
+                // First check to see if a moderator killed the post.  --Kris
+                if (e.NewPost.Spam)
+                {
+                    // Update report in db to set isspam to true.  --Kris
+                    UpdateRequest(RequestIdsByPostId[e.NewPost.Id], e.NewPost);
+
+                    RejectPost(e.NewPost);
+                    UnmonitorPost(e.NewPost);
+                }
+                else if (e.NewPost.Removed
+                    || e.NewPost.Listing.LinkFlairText.Equals("REJECTED"))
+                {
+                    RejectPost(e.NewPost);
+                    UnmonitorPost(e.NewPost);
+                }
+                else if (e.NewPost.Listing.LinkFlairText.Equals("APPLIED"))
+                {
+                    UnmonitorPost(e.NewPost);
+                }
+                else if (e.NewPost.Listing.IsSelf)
+                {
+                    // Check to see if the post is ready and go from there.  --Kris
+                    CheckPostIsReady((SelfPost)e.NewPost);
+                }
+            }
         }
     }
 }

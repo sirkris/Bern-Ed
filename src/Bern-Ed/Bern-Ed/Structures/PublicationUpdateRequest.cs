@@ -55,8 +55,9 @@ namespace Bern_Ed.Structures
                 DaysWaitAfterPublish = publicationChangeReport.DaysWaitAfterPublish,
                 RequiresLocalTieIn = publicationChangeReport.RequiresLocalTieIn,
                 Website = publicationChangeReport.Website,
-                Notes = oldPublication.Notes + Environment.NewLine + Environment.NewLine + publicationChangeReport.AddNote,
-                ContactURL = publicationChangeReport.Source
+                Notes = oldPublication.Notes + "|" + publicationChangeReport.AddNote,
+                ContactURL = publicationChangeReport.Source, 
+                Enabled = oldPublication.Enabled
             };
             RequestReceived = DateTime.Now;
         }

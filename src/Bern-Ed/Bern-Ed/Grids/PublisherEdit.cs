@@ -75,7 +75,8 @@ namespace Bern_Ed.Grids
                 StyleId = "stateAbbr",
                 Text = publication.StateAbbr,
                 MaxLength = 2,
-                VerticalOptions = LayoutOptions.Center
+                VerticalOptions = LayoutOptions.Center,
+                IsEnabled = false
             };
             Grid.Children.Add(EntryState, 1, 1);
 
