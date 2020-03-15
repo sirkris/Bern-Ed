@@ -1,11 +1,13 @@
 ﻿using Android.App;
 using Android.Content;
+using Android.Content.PM;
 using Android.OS;
 using Android.Support.V7.App;
 
 namespace Bern_Ed.Droid
 {
-    [Activity(Label = "Bern_Ed", Icon = "@mipmap/icon", Theme = "@style/MainTheme.Splash", MainLauncher = true, NoHistory = true)]
+    [Activity(Label = "Bern_Ed", Icon = "@mipmap/icon", Theme = "@style/MainTheme.Splash", MainLauncher = true, NoHistory = true, 
+        ScreenOrientation = ScreenOrientation.Portrait | ScreenOrientation.Landscape)]
     public class SplashActivity : AppCompatActivity
     {
         protected override void OnCreate(Bundle savedInstanceState)

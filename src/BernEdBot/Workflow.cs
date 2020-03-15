@@ -64,7 +64,16 @@ namespace BernEdBot
                     || !RequestQueueLastUpdated.HasValue
                     || RequestQueueLastUpdated.Value.AddMinutes(15) < DateTime.Now)
                 {
-                    RequestQueue = JsonConvert.DeserializeObject<IList<PublicationUpdateRequest>>(Request.ExecuteRequest(Request.Prepare("/berned/pubChangeRequest?getQueue")));
+                    string res = Request.ExecuteRequest(Request.Prepare("/berned/pubChangeRequest?getQueue"));
+                    if (!string.IsNullOrEmpty(res))
+                    {
+                        res = res.Replace("\\\"", "\"")
+                            .Replace("\"oldPublisherJson\":\"", "\"oldPublisherJson\":")
+                            .Replace("}\",\"newPublisherJson\":\"", "},\"newPublisherJson\":")
+                            .Replace("}\",\"redditPostId\"", "},\"redditPostId\"");
+                    }
+
+                    RequestQueue = JsonConvert.DeserializeObject<IList<PublicationUpdateRequest>>(res);
                 }
 
                 return requestQueue;
@@ -89,6 +98,8 @@ namespace BernEdBot
 
         private IDictionary<string, int> RequestIdsByPostId { get; set; }
 
+        private bool LogVerbose { get; set; } = false;
+
         private const string SUBREDDIT = "FreeOpinionSyndicate";
         private const string POST_TITLE_PREFIX = "NEW PUBLISHER UPDATE REPORT: ";
         private const int MAX_ACTIVE_POSTS = 3;
@@ -104,6 +115,8 @@ namespace BernEdBot
 
         public Workflow()
         {
+            Log("Initializing....");
+
             if (RedditClient == null)
             {
                 throw new Exception("Unable to load Reddit client!");
@@ -113,10 +126,14 @@ namespace BernEdBot
             RequestIdsByPostId = new Dictionary<string, int>();
             Request = new Request();
             Subreddit = RedditClient.Subreddit(SUBREDDIT);
+
+            Log("Initialization complete.");
         }
 
         public void MainLoop()
         {
+            Log("Commencing main loop....");
+
             // Check Reddit for any existing posts to monitor.  --Kris
             ScanPosts();
 
@@ -140,6 +157,8 @@ namespace BernEdBot
             {
                 UnmonitorPost(requestId);
             }
+
+            Log("Main loop execution complete.");
         }
 
         private void ExecuteQueue()
@@ -147,6 +166,8 @@ namespace BernEdBot
             if (RequestQueue != null 
                 && Posts.Count <= MAX_ACTIVE_POSTS)
             {
+                Log("Checking requests queue....");
+
                 foreach (PublicationUpdateRequest publicationUpdateRequest in RequestQueue)
                 {
                     MonitorPost(CreatePost(publicationUpdateRequest), publicationUpdateRequest.RequestId);
@@ -155,6 +176,8 @@ namespace BernEdBot
                         break;
                     }
                 }
+
+                Log("Queue check complete.");
             }
         }
 
@@ -177,6 +200,8 @@ namespace BernEdBot
 
             res.Distinguish("yes");
             UpdateRequest(publicationUpdateRequest.RequestId, res.Id);
+
+            Log("Created new Reddit post: " + res.Id);
 
             return res;
         }
@@ -303,6 +328,8 @@ namespace BernEdBot
 
         private void ScanPosts()
         {
+            Log("Scanning for active request posts....");
+
             foreach (Post post in Subreddit.Posts.GetNew(limit: 100))
             {
                 if (IsActiveReportPost(post, out PublicationUpdateRequest publicationUpdateRequest))
@@ -310,12 +337,16 @@ namespace BernEdBot
                     MonitorPost((SelfPost)post, publicationUpdateRequest.RequestId);
                 }
             }
+
+            Log("Post scan complete.  Found " + Posts.Count.ToString() + " post" + (!Posts.Count.Equals(1) ? "s" : "") + ".");
         }
 
         private void MonitorPost(SelfPost post, int requestId)
         {
             if (post != null)
             {
+                Log("Monitoring post (postId=" + post.Id + ", requestId=" + requestId.ToString() + ")....");
+
                 post.PostDataUpdated += C_PostUpdated;
                 post.MonitorPostData(monitoringBaseDelayMs: 15000);
 
@@ -336,6 +367,8 @@ namespace BernEdBot
 
                 Posts[requestId].MonitorPostScore();
                 Posts[requestId].PostScoreUpdated -= C_PostUpdated;
+
+                Log("Stopped monitoring post (postId=" + Posts[requestId].Id + ", requestId=" + requestId.ToString() + ").");
 
                 Posts.Remove(requestId);
             }
@@ -364,6 +397,8 @@ namespace BernEdBot
             if (!LastPostClean.HasValue
                 || LastPostClean.Value.AddHours(1) < DateTime.Now)
             {
+                Log("Cleaning posts....");
+
                 IList<int> removeIds = new List<int>();
                 foreach (KeyValuePair<int, SelfPost> pair in Posts)
                 {
@@ -397,6 +432,8 @@ namespace BernEdBot
                 }
 
                 LastPostClean = DateTime.Now;
+
+                Log("Post clean complete.  Removed " + removeIds.Count.ToString() + " post" + (!removeIds.Count.Equals(1) ? "s" : "") + " from monitoring.");
             }
         }
 
@@ -406,6 +443,8 @@ namespace BernEdBot
             if (!LastApprovalCheck.HasValue
                 || LastApprovalCheck.Value.AddHours(1) < DateTime.Now)
             {
+                Log("Checking posts for approval....");
+
                 IList<int> removeIds = new List<int>();
                 foreach (KeyValuePair<int, SelfPost> pair in Posts)
                 {
@@ -421,6 +460,8 @@ namespace BernEdBot
                 }
 
                 LastApprovalCheck = DateTime.Now;
+
+                Log("Post approval scan complete.  Removed " + removeIds.Count.ToString() + " post" + (!removeIds.Count.Equals(1) ? "s" : "") + " from monitoring.");
             }
         }
 
@@ -431,6 +472,8 @@ namespace BernEdBot
             {
                 // Update our publisher in the db.  --Kris
                 PublicationUpdateRequest publicationUpdateRequest = GetReportData(post);
+
+                Log("Request #" + publicationUpdateRequest.RequestId.ToString() + " to update " + publicationUpdateRequest.OldPublication.Name + " (postId=" + post.Id + ") meets all criteria!");
 
                 UpdatePublisher(publicationUpdateRequest.OldPublication.PubID,
                     (!publicationUpdateRequest.OldPublication.Email.Equals(publicationUpdateRequest.NewPublication.Email) ? publicationUpdateRequest.NewPublication.Email : null),
@@ -479,93 +522,135 @@ namespace BernEdBot
         private void UpdatePublisher(int pubId, string email = null, string phone = null, string pocTitle = null, string poc = null, int? wordLimit = null, string notes = null, 
             bool? requiresLocalTieIn = null, int? daysWaitAfterPublish = null, string webDomain = null, string contactURL = null, string city = null)
         {
+            Log("Preparing to update publisher #" + pubId.ToString() + "....");
+
+            string logMsg = "Updated publisher #" + pubId.ToString() + " with the following parameters:" + NEWLINE;
+
             RestRequest restRequest = Request.Prepare("/opmail/publications/" + pubId.ToString(), Method.POST);
 
+            string logParams = "";
             if (!string.IsNullOrWhiteSpace(email))
             {
                 restRequest.AddParameter("email", email);
+                logParams += "email=" + email + Environment.NewLine;
             }
 
             if (!string.IsNullOrWhiteSpace(phone))
             {
                 restRequest.AddParameter("phone", phone);
+                logParams += "phone=" + phone + Environment.NewLine;
             }
 
             if (!string.IsNullOrWhiteSpace(pocTitle))
             {
                 restRequest.AddParameter("pocTitle", pocTitle);
+                logParams += "pocTitle=" + pocTitle + Environment.NewLine;
             }
 
             if (!string.IsNullOrWhiteSpace(poc))
             {
                 restRequest.AddParameter("poc", poc);
+                logParams += "poc=" + poc + Environment.NewLine;
             }
 
             // To unset back to null, pass 0.  --Kris
             if (wordLimit.HasValue)
             {
                 restRequest.AddParameter("wordLimit", (!wordLimit.Value.Equals(0) ? wordLimit.Value : (int?)null));
+                logParams += "wordLimit=" + wordLimit.ToString() + Environment.NewLine;
             }
 
             if (!string.IsNullOrWhiteSpace(notes))
             {
                 restRequest.AddParameter("notes", notes);
+                logParams += "notes=" + notes + Environment.NewLine;
             }
 
             if (requiresLocalTieIn.HasValue)
             {
                 restRequest.AddParameter("requiresLocalTieIn", requiresLocalTieIn.Value);
+                logParams += "requiresLocalTieIn=" + (requiresLocalTieIn.Value ? "yes" : "no") + Environment.NewLine;
             }
 
             if (daysWaitAfterPublish.HasValue)
             {
                 restRequest.AddParameter("daysWaitAfterPublish", daysWaitAfterPublish.Value);
+                logParams += "daysWaitAfterPublish=" + daysWaitAfterPublish.ToString() + Environment.NewLine;
             }
 
             if (!string.IsNullOrWhiteSpace(webDomain))
             {
                 restRequest.AddParameter("webDomain", webDomain);
+                logParams += "webDomain=" + webDomain + Environment.NewLine;
             }
 
             if (!string.IsNullOrWhiteSpace(contactURL))
             {
                 restRequest.AddParameter("contactURL", contactURL);
+                logParams += "contactURL=" + contactURL + Environment.NewLine;
             }
 
             if (!string.IsNullOrWhiteSpace(city))
             {
                 restRequest.AddParameter("city", city);
+                logParams += "city=" + city + Environment.NewLine;
             }
 
-            Request.ExecuteRequest(restRequest);
+            if (string.IsNullOrEmpty(logParams))
+            {
+                Log("Warning: UpdatePublisher called for pubId #" + pubId.ToString() + " with no changes.");
+            }
+            else
+            {
+                Request.ExecuteRequest(restRequest);
+                Log(logMsg + logParams);
+            }
         }
 
         private void UpdateRequest(int requestId, string redditPostId = null, string redditVerifiedCommentId = null, string approvedBy = null, bool? isSpam = null, bool? applied = null)
         {
+            Log("Preparing to update request #" + requestId.ToString() + "....");
+
+            string logMsg = "Updated request #" + requestId.ToString() + " with the following parameters:" + NEWLINE;
+
             RestRequest restRequest = Request.Prepare("/berned/pubChangeRequest/" + requestId.ToString(), Method.PUT);
 
+            string logParams = "";
             if (!string.IsNullOrWhiteSpace(redditPostId))
             {
                 restRequest.AddParameter("redditPostId", redditPostId);
+                logParams += "redditPostId=" + redditPostId + Environment.NewLine;
             }
             if (!string.IsNullOrWhiteSpace(redditVerifiedCommentId))
             {
                 restRequest.AddParameter("redditVerifiedCommentId", redditVerifiedCommentId);
+                logParams += "redditVerifiedCommentId=" + redditVerifiedCommentId + Environment.NewLine;
             }
             if (!string.IsNullOrWhiteSpace(approvedBy))
             {
                 restRequest.AddParameter("approvedBy", approvedBy);
+                logParams += "approvedBy=" + approvedBy + Environment.NewLine;
             }
             if (isSpam.HasValue)
             {
                 restRequest.AddParameter("isSpam", (isSpam.Value ? "1" : "0"));
+                logParams += "isSpam=" + (isSpam.Value ? "1" : "0") + Environment.NewLine;
             }
             if (applied.HasValue)
             {
                 restRequest.AddParameter("applied", (applied.Value ? "1" : "0"));
+                logParams += "applied=" + (applied.Value ? "1" : "0") + Environment.NewLine;
             }
 
-            Request.ExecuteRequest(restRequest);
+            if (string.IsNullOrEmpty(logParams))
+            {
+                Log("Warning: UpdateRequest called for requestId #" + requestId.ToString() + " with no changes.");
+            }
+            else
+            {
+                Request.ExecuteRequest(restRequest);
+                Log(logMsg + logParams);
+            }
         }
 
         private void UpdateRequest(int requestId, Post post, bool? applied = null)
@@ -580,12 +665,16 @@ namespace BernEdBot
         {
             post.SetFlair("APPLIED");
             post.Comment("Update request applied.").Submit();
+
+            Log("Accepted post " + post.Id);
         }
 
         private void RejectPost(Post post)
         {
             post.SetFlair("REJECTED");
             post.Comment("Update request rejected.").Submit();
+
+            Log("Rejected post " + post.Id);
         }
 
         private PublicationUpdateRequest GetReportData(SelfPost post)
@@ -713,6 +802,19 @@ namespace BernEdBot
             }
 
             return res;
+        }
+
+        /// <summary>
+        /// Output a log message.
+        /// </summary>
+        /// <param name="message">The message to be logged</param>
+        /// <param name="verboseOnly">If true, the log message will only be displayed if logging is set to verbose</param>
+        public void Log(string message, bool verboseOnly = false)
+        {
+            if (!verboseOnly || LogVerbose)
+            {
+                Console.WriteLine("[" + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + "] " + message);
+            }
         }
 
         // Both data and score monitors will end up here.  --Kris

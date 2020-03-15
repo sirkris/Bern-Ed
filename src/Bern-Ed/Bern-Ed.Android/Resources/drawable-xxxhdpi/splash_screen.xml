@@ -7,6 +7,6 @@
     <bitmap
         android:src="@drawable/berned_splash_xxxhdpi"
         android:tileMode="disabled"
-        android:gravity="center"/>
+        android:gravity="fill"/>
   </item>
 </layer-list>
