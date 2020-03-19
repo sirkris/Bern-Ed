@@ -8,7 +8,7 @@ namespace Bern_Ed
 {
     public class Request
     {
-        public RestClient RestClient;
+        public RestClient RestClient { get; set; }
 
         public Request()
         {

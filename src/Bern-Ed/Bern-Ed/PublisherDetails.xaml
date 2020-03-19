@@ -21,7 +21,9 @@
                     <!-- Content is generated.  -->
                 </StackLayout>
             </ScrollView>
-            <Button Text="Report Changes" HorizontalOptions="Center" VerticalOptions="EndAndExpand" Clicked="Button_Clicked" />
+            <Button x:Name="ButtonCall" Text="Call Opinion Editor" HorizontalOptions="Center" VerticalOptions="EndAndExpand" Clicked="ButtonCall_Clicked" />
+            <Button x:Name="ButtonEmail" Text="Email Opinion Editor" HorizontalOptions="Center" VerticalOptions="EndAndExpand" Clicked="ButtonEmail_Clicked" />
+            <Button x:Name="ButtonReport" Text="Report Changes" HorizontalOptions="Center" VerticalOptions="EndAndExpand" Clicked="ButtonReport_Clicked" />
         </StackLayout>
     </ContentPage.Content>
 </ContentPage>

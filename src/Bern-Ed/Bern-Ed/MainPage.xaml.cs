@@ -18,5 +18,10 @@ namespace Bern_Ed
         {
             Navigation.PushAsync(new PublishersByState(((Button)sender).Text));
         }
+
+        private void ToolbarItem_About_Clicked(object sender, EventArgs e)
+        {
+            // TODO
+        }
     }
 }
