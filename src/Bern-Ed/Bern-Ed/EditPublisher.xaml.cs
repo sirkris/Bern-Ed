@@ -43,6 +43,13 @@ namespace Bern_Ed
             }
             catch (Exception) { }
 
+            // In case somebody tries to be a smartass.  --Kris
+            string addNote = PublisherEdit.EntryAddNote.Text;
+            while (addNote.Contains("    "))
+            {
+                addNote = addNote.Replace("    ", " ");
+            }
+
             // Submit report.  --Kris
             RestRequest request = Request.Prepare("/berned/pubChangeRequest", Method.POST, "application/json");
 
@@ -61,7 +68,7 @@ namespace Bern_Ed
                     DaysWaitAfterPublish = publishInterval,
                     RequiresLocalTieIn = PublisherEdit.EntryRequiresLocal.IsChecked,
                     Website = PublisherEdit.EntryWebsite.Text,
-                    AddNote = PublisherEdit.EntryAddNote.Text,
+                    AddNote = addNote,
                     Source = PublisherEdit.EntrySource.Text
                 }, Publication)));
 

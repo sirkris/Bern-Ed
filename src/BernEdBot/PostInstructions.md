@@ -1,4 +1,4 @@
-﻿#### Approval
+﻿### Approval
 
 In order for this request to be accepted, the following conditions must be met:
 
@@ -10,7 +10,7 @@ In order for this request to be accepted, the following conditions must be met:
 
 **All of the above conditions must be met in order for the bot to apply the request.**
 
-#### Rejection
+### Rejection
 
 The method for rejecting this request depends on your reason:
 

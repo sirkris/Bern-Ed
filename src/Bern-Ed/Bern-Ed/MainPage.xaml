@@ -8,6 +8,10 @@
              Title="Bern-Ed"
              x:Class="Bern_Ed.MainPage">
 
+    <ContentPage.ToolbarItems>
+        <ToolbarItem x:Name="ToolbarItem_About" Text="About" Order="Secondary" Clicked="ToolbarItem_About_Clicked" />
+    </ContentPage.ToolbarItems>
+
     <StackLayout>
         <Label Text="Please Select a State:" 
            HorizontalOptions="Center"

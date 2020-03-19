@@ -3,6 +3,7 @@ using Newtonsoft.Json;
 using Reddit;
 using Reddit.Controllers;
 using Reddit.Controllers.EventArgs;
+using Reddit.Exceptions;
 using RestSharp;
 using System;
 using System.Collections.Generic;
@@ -97,6 +98,8 @@ namespace BernEdBot
         private IDictionary<int, SelfPost> Posts { get; set; }
 
         private IDictionary<string, int> RequestIdsByPostId { get; set; }
+        private HashSet<string> RequesterIPs { get; set; }
+        private IDictionary<int, PublicationUpdateRequest> RequestsByRequestID { get; set; }
 
         private bool LogVerbose { get; set; } = false;
 
@@ -115,6 +118,8 @@ namespace BernEdBot
 
         public Workflow()
         {
+            Intro();
+
             Log("Initializing....");
 
             if (RedditClient == null)
@@ -124,6 +129,8 @@ namespace BernEdBot
 
             Posts = new Dictionary<int, SelfPost>();
             RequestIdsByPostId = new Dictionary<string, int>();
+            RequesterIPs = new HashSet<string>();
+            RequestsByRequestID = new Dictionary<int, PublicationUpdateRequest>();
             Request = new Request();
             Subreddit = RedditClient.Subreddit(SUBREDDIT);
 
@@ -170,12 +177,15 @@ namespace BernEdBot
 
                 foreach (PublicationUpdateRequest publicationUpdateRequest in RequestQueue)
                 {
-                    MonitorPost(CreatePost(publicationUpdateRequest), publicationUpdateRequest.RequestId);
+                    MonitorPost(CreatePost(publicationUpdateRequest), publicationUpdateRequest);
                     if (Posts.Count.Equals(MAX_ACTIVE_POSTS))
                     {
                         break;
                     }
                 }
+
+                // Clear the queue.  --Kris
+                RequestQueue = null;
 
                 Log("Queue check complete.");
             }
@@ -183,23 +193,24 @@ namespace BernEdBot
 
         private SelfPost CreatePost(PublicationUpdateRequest publicationUpdateRequest)
         {
-            string body = "## " + publicationUpdateRequest.OldPublication.Name + NEWLINE;
+            string body = "# " + publicationUpdateRequest.OldPublication.Name + NEWLINE;
 
-            body += "### Proposed Changes" + NEWLINE;
+            body += "## Proposed Changes" + NEWLINE;
             body += GetChanges(publicationUpdateRequest) + NEWLINE;
 
-            body += "### Raw Data" + NEWLINE;
-            body += "```" + NEWLINE + GetRawData(publicationUpdateRequest) + NEWLINE + "```" + NEWLINE;
+            body += "## Raw Data" + NEWLINE;
+            body += "    " + GetRawData(publicationUpdateRequest) + "    " + NEWLINE;
 
-            body += "### Instructions" + NEWLINE;
+            body += "## Instructions" + NEWLINE;
             body += GetInstructions() + NEWLINE;
 
             body += "**Thank you for helping to keep this public database accurate and up-to-date!**";
 
             SelfPost res = Subreddit.SelfPost(POST_TITLE_PREFIX + publicationUpdateRequest.OldPublication.Name, body).Submit();
+            publicationUpdateRequest.RedditPostID = res.Id;
 
             res.Distinguish("yes");
-            UpdateRequest(publicationUpdateRequest.RequestId, res.Id);
+            UpdateRequest(publicationUpdateRequest.RequestId, publicationUpdateRequest);
 
             Log("Created new Reddit post: " + res.Id);
 
@@ -218,93 +229,93 @@ namespace BernEdBot
 
             if (!publicationUpdateRequest.OldPublication.City.Equals(publicationUpdateRequest.NewPublication.City))
             {
-                res += "#### City" + NEWLINE;
+                res += "### City" + NEWLINE;
                 res += "~~" + publicationUpdateRequest.OldPublication.City + "~~" + NEWLINE;
-                res += "**" + publicationUpdateRequest.NewPublication.City + "**" + NEWLINE;
+                res += "*" + publicationUpdateRequest.NewPublication.City + "*" + NEWLINE;
             }
 
             if (!publicationUpdateRequest.OldPublication.StateAbbr.Equals(publicationUpdateRequest.NewPublication.StateAbbr))
             {
-                res += "#### State" + NEWLINE;
+                res += "### State" + NEWLINE;
                 res += "~~" + publicationUpdateRequest.OldPublication.StateAbbr + "~~" + NEWLINE;
-                res += "**" + publicationUpdateRequest.NewPublication.StateAbbr + "**" + NEWLINE;
+                res += "*" + publicationUpdateRequest.NewPublication.StateAbbr + "*" + NEWLINE;
             }
 
             if (!publicationUpdateRequest.OldPublication.Email.Equals(publicationUpdateRequest.NewPublication.Email))
             {
-                res += "#### Email" + NEWLINE;
+                res += "### Email" + NEWLINE;
                 res += "~~" + publicationUpdateRequest.OldPublication.Email + "~~" + NEWLINE;
-                res += "**" + publicationUpdateRequest.NewPublication.Email + "**" + NEWLINE;
+                res += "*" + publicationUpdateRequest.NewPublication.Email + "*" + NEWLINE;
             }
 
             if (!publicationUpdateRequest.OldPublication.Phone.Equals(publicationUpdateRequest.NewPublication.Phone))
             {
-                res += "#### Phone" + NEWLINE;
+                res += "### Phone" + NEWLINE;
                 res += "~~" + publicationUpdateRequest.OldPublication.Phone + "~~" + NEWLINE;
-                res += "**" + publicationUpdateRequest.NewPublication.Phone + "**" + NEWLINE;
+                res += "*" + publicationUpdateRequest.NewPublication.Phone + "*" + NEWLINE;
             }
 
             if (!publicationUpdateRequest.OldPublication.POCTitle.Equals(publicationUpdateRequest.NewPublication.POCTitle))
             {
-                res += "#### Contact Title" + NEWLINE;
+                res += "### Contact Title" + NEWLINE;
                 res += "~~" + publicationUpdateRequest.OldPublication.POCTitle + "~~" + NEWLINE;
-                res += "**" + publicationUpdateRequest.NewPublication.POCTitle + "**" + NEWLINE;
+                res += "*" + publicationUpdateRequest.NewPublication.POCTitle + "*" + NEWLINE;
             }
 
             if (!publicationUpdateRequest.OldPublication.POC.Equals(publicationUpdateRequest.NewPublication.POC))
             {
-                res += "#### Contact Name" + NEWLINE;
+                res += "### Contact Name" + NEWLINE;
                 res += "~~" + publicationUpdateRequest.OldPublication.POC + "~~" + NEWLINE;
-                res += "**" + publicationUpdateRequest.NewPublication.POC + "**" + NEWLINE;
+                res += "*" + publicationUpdateRequest.NewPublication.POC + "*" + NEWLINE;
             }
 
             if (!publicationUpdateRequest.OldPublication.WordLimit.Equals(publicationUpdateRequest.NewPublication.WordLimit))
             {
-                res += "#### Word Limit" + NEWLINE;
+                res += "### Word Limit" + NEWLINE;
                 res += (publicationUpdateRequest.OldPublication.WordLimit.HasValue ? "~~" + publicationUpdateRequest.OldPublication.WordLimit + "~~" + NEWLINE : "");
-                res += (publicationUpdateRequest.NewPublication.WordLimit.HasValue ? "**" + publicationUpdateRequest.NewPublication.WordLimit + "**" + NEWLINE : "");
+                res += (publicationUpdateRequest.NewPublication.WordLimit.HasValue ? "*" + publicationUpdateRequest.NewPublication.WordLimit + "*" + NEWLINE : "");
             }
 
             if (!publicationUpdateRequest.OldPublication.DaysWaitAfterPublish.Equals(publicationUpdateRequest.NewPublication.DaysWaitAfterPublish))
             {
-                res += "#### Publish Interval" + NEWLINE;
+                res += "### Publish Interval" + NEWLINE;
                 res += "~~" + publicationUpdateRequest.OldPublication.DaysWaitAfterPublish.ToString() + " days" + "~~" + NEWLINE;
-                res += "**" + publicationUpdateRequest.NewPublication.DaysWaitAfterPublish.ToString() + " days" + "**" + NEWLINE;
+                res += "*" + publicationUpdateRequest.NewPublication.DaysWaitAfterPublish.ToString() + " days" + "*" + NEWLINE;
             }
 
             if (!publicationUpdateRequest.OldPublication.City.Equals(publicationUpdateRequest.NewPublication.Notes))
             {
-                res += "#### Notes" + NEWLINE;
+                res += "### Notes" + NEWLINE;
                 res += "~~" + publicationUpdateRequest.OldPublication.Notes + "~~" + NEWLINE;
-                res += "**" + publicationUpdateRequest.NewPublication.Notes + "**" + NEWLINE;
+                res += "*" + publicationUpdateRequest.NewPublication.Notes + "*" + NEWLINE;
             }
 
             if (!publicationUpdateRequest.OldPublication.ContactURL.Equals(publicationUpdateRequest.NewPublication.ContactURL))
             {
-                res += "#### Source" + NEWLINE;
+                res += "### Source" + NEWLINE;
                 res += "~~" + publicationUpdateRequest.OldPublication.ContactURL + "~~" + NEWLINE;
-                res += "**" + publicationUpdateRequest.NewPublication.ContactURL + "**" + NEWLINE;
+                res += "*" + publicationUpdateRequest.NewPublication.ContactURL + "*" + NEWLINE;
             }
 
             if (!publicationUpdateRequest.OldPublication.Website.Equals(publicationUpdateRequest.NewPublication.Website))
             {
-                res += "#### Website" + NEWLINE;
+                res += "### Website" + NEWLINE;
                 res += "~~" + publicationUpdateRequest.OldPublication.Website + "~~" + NEWLINE;
-                res += "**" + publicationUpdateRequest.NewPublication.Website + "**" + NEWLINE;
+                res += "*" + publicationUpdateRequest.NewPublication.Website + "*" + NEWLINE;
             }
 
             if (!publicationUpdateRequest.OldPublication.RequiresLocalTieIn.Equals(publicationUpdateRequest.NewPublication.RequiresLocalTieIn))
             {
-                res += "#### Requires Local Tie-In?" + NEWLINE;
+                res += "### Requires Local Tie-In?" + NEWLINE;
                 res += "~~" + (publicationUpdateRequest.OldPublication.RequiresLocalTieIn ? "Yes" : "No") + "~~" + NEWLINE;
-                res += "**" + (publicationUpdateRequest.NewPublication.RequiresLocalTieIn ? "Yes" : "No") + "**" + NEWLINE;
+                res += "*" + (publicationUpdateRequest.NewPublication.RequiresLocalTieIn ? "Yes" : "No") + "*" + NEWLINE;
             }
 
             if (!publicationUpdateRequest.OldPublication.Enabled.Equals(publicationUpdateRequest.NewPublication.Enabled))
             {
-                res += "#### Enabled?" + NEWLINE;
+                res += "### Enabled?" + NEWLINE;
                 res += "~~" + (publicationUpdateRequest.OldPublication.Enabled ? "Yes" : "No") + "~~" + NEWLINE;
-                res += "**" + (publicationUpdateRequest.NewPublication.Enabled ? "Yes" : "No") + "**" + NEWLINE;
+                res += "*" + (publicationUpdateRequest.NewPublication.Enabled ? "Yes" : "No") + "*" + NEWLINE;
             }
 
             if (string.IsNullOrEmpty(res))
@@ -330,22 +341,41 @@ namespace BernEdBot
         {
             Log("Scanning for active request posts....");
 
-            foreach (Post post in Subreddit.Posts.GetNew(limit: 100))
+            // Sometimes, Reddit will return a 401 Unauthorized response when the servers are busy.  Don't be fooled.  --Kris
+            int retry = 10;
+            do
             {
-                if (IsActiveReportPost(post, out PublicationUpdateRequest publicationUpdateRequest))
+                try
                 {
-                    MonitorPost((SelfPost)post, publicationUpdateRequest.RequestId);
+                    foreach (Post post in Subreddit.Posts.GetNew(limit: 100))
+                    {
+                        if (IsActiveReportPost(post, out PublicationUpdateRequest publicationUpdateRequest))
+                        {
+                            MonitorPost((SelfPost)post, publicationUpdateRequest);
+                        }
+                    }
                 }
-            }
+                catch (RedditUnauthorizedException ex)
+                {
+                    if ((--retry).Equals(0))
+                    {
+                        throw ex;
+                    }
+
+                    Thread.Sleep(30000);
+                }
+
+                break;
+            } while (!retry.Equals(0));
 
             Log("Post scan complete.  Found " + Posts.Count.ToString() + " post" + (!Posts.Count.Equals(1) ? "s" : "") + ".");
         }
 
-        private void MonitorPost(SelfPost post, int requestId)
+        private void MonitorPost(SelfPost post, PublicationUpdateRequest publicationUpdateRequest)
         {
-            if (post != null)
+            if (post != null && !RequesterIPs.Contains(publicationUpdateRequest.IP))
             {
-                Log("Monitoring post (postId=" + post.Id + ", requestId=" + requestId.ToString() + ")....");
+                Log("Monitoring post (postId=" + post.Id + ", requestId=" + publicationUpdateRequest.RequestId.ToString() + ")....");
 
                 post.PostDataUpdated += C_PostUpdated;
                 post.MonitorPostData(monitoringBaseDelayMs: 15000);
@@ -353,25 +383,33 @@ namespace BernEdBot
                 post.PostScoreUpdated += C_PostUpdated;
                 post.MonitorPostScore(monitoringBaseDelayMs: 15000);
 
-                Posts.Add(requestId, post);
-                RequestIdsByPostId.Add(post.Id, requestId);
+                Posts.Add(publicationUpdateRequest.RequestId, post);
+                RequestIdsByPostId.Add(post.Id, publicationUpdateRequest.RequestId);
+                RequesterIPs.Add(publicationUpdateRequest.IP);
+                RequestsByRequestID.Add(publicationUpdateRequest.RequestId, publicationUpdateRequest);
+            }
+        }
+
+        private void UnmonitorPost(PublicationUpdateRequest publicationUpdateRequest)
+        {
+            if (Posts.ContainsKey(publicationUpdateRequest.RequestId))
+            {
+                Posts[publicationUpdateRequest.RequestId].MonitorPostData();
+                Posts[publicationUpdateRequest.RequestId].PostDataUpdated -= C_PostUpdated;
+
+                Posts[publicationUpdateRequest.RequestId].MonitorPostScore();
+                Posts[publicationUpdateRequest.RequestId].PostScoreUpdated -= C_PostUpdated;
+
+                Log("Stopped monitoring post (postId=" + Posts[publicationUpdateRequest.RequestId].Id + ", requestId=" + publicationUpdateRequest.RequestId.ToString() + ").");
+
+                Posts.Remove(publicationUpdateRequest.RequestId);
+                RequesterIPs.Remove(publicationUpdateRequest.IP);
             }
         }
 
         private void UnmonitorPost(int requestId)
         {
-            if (Posts.ContainsKey(requestId))
-            {
-                Posts[requestId].MonitorPostData();
-                Posts[requestId].PostDataUpdated -= C_PostUpdated;
-
-                Posts[requestId].MonitorPostScore();
-                Posts[requestId].PostScoreUpdated -= C_PostUpdated;
-
-                Log("Stopped monitoring post (postId=" + Posts[requestId].Id + ", requestId=" + requestId.ToString() + ").");
-
-                Posts.Remove(requestId);
-            }
+            UnmonitorPost(RequestsByRequestID[requestId]);
         }
 
         private void UnmonitorPost(Post post)
@@ -413,7 +451,7 @@ namespace BernEdBot
                         PublicationUpdateRequest publicationUpdateRequest = null;
                         try
                         {
-                            publicationUpdateRequest = JsonConvert.DeserializeObject<PublicationUpdateRequest>(res);
+                            publicationUpdateRequest = JsonConvert.DeserializeObject<PublicationUpdateRequest>(SanitizeReportJSON(res));
                         }
                         catch (Exception) { }
 
@@ -448,7 +486,7 @@ namespace BernEdBot
                 IList<int> removeIds = new List<int>();
                 foreach (KeyValuePair<int, SelfPost> pair in Posts)
                 {
-                    if (CheckPostIsReady(pair.Value))
+                    if (CheckPostIsReady(pair.Value.About()))
                     {
                         removeIds.Add(pair.Key);
                     }
@@ -458,6 +496,8 @@ namespace BernEdBot
                 {
                     UnmonitorPost(removeId);
                 }
+
+                RequestQueue = null;
 
                 LastApprovalCheck = DateTime.Now;
 
@@ -494,7 +534,7 @@ namespace BernEdBot
                 AcceptPost(post);
 
                 // Update the request.  --Kris
-                UpdateRequest(RequestIdsByPostId[post.Id], post, true);
+                UpdateRequest(RequestIdsByPostId[post.Id], publicationUpdateRequest);
 
                 return true;
             }
@@ -513,10 +553,10 @@ namespace BernEdBot
                 && !post.Removed 
                 && !post.Spam 
                 && post.Edited.Equals(default)
-                && !post.Listing.LinkFlairText.Equals("REJECTED")
-                && !post.Listing.LinkFlairText.Equals("APPLIED")
+                && (string.IsNullOrEmpty(post.Listing.LinkFlairText) || !post.Listing.LinkFlairText.Equals("REJECTED"))
+                && (string.IsNullOrEmpty(post.Listing.LinkFlairText) || !post.Listing.LinkFlairText.Equals("APPLIED"))
                 && post.Score > 0 
-                && post.UpvoteRatio > 0.5);
+                && (post.UpvoteRatio.Equals(0) || post.UpvoteRatio > 0.5));
         }
 
         private void UpdatePublisher(int pubId, string email = null, string phone = null, string pocTitle = null, string poc = null, int? wordLimit = null, string notes = null, 
@@ -526,7 +566,9 @@ namespace BernEdBot
 
             string logMsg = "Updated publisher #" + pubId.ToString() + " with the following parameters:" + NEWLINE;
 
-            RestRequest restRequest = Request.Prepare("/opmail/publications/" + pubId.ToString(), Method.POST);
+            RestRequest restRequest = Request.Prepare("/opmail/publications", Method.POST);
+
+            restRequest.AddParameter("pubId", pubId);
 
             string logParams = "";
             if (!string.IsNullOrWhiteSpace(email))
@@ -607,6 +649,21 @@ namespace BernEdBot
             }
         }
 
+        // Server config on ourproject.org is incompatible with our API PUT.  So if the record already exists, it'll be treated as an update.  --Kris
+        private void UpdateRequest(int requestId, PublicationUpdateRequest publicationUpdateRequest)
+        {
+            RestRequest request = Request.Prepare("/berned/pubChangeRequest", Method.POST, "application/json");
+
+            string json = JsonConvert.SerializeObject(publicationUpdateRequest);
+            request.AddJsonBody(json);
+
+            string res = Request.ExecuteRequest(request);
+
+            Log("Updated request #" + requestId.ToString() + ".");
+            Log("Request Data:" + json, true);
+        }
+
+        // TODO - Remove.  --Kris
         private void UpdateRequest(int requestId, string redditPostId = null, string redditVerifiedCommentId = null, string approvedBy = null, bool? isSpam = null, bool? applied = null)
         {
             Log("Preparing to update request #" + requestId.ToString() + "....");
@@ -653,11 +710,16 @@ namespace BernEdBot
             }
         }
 
-        private void UpdateRequest(int requestId, Post post, bool? applied = null)
+        private void UpdateRequest(int requestId, Post post, DateTime? applied = null)
         {
-            if (post != null)
+            if (post != null && RequestsByRequestID.ContainsKey(requestId))
             {
-                UpdateRequest(requestId, redditPostId: post.Id, approvedBy: post.Listing.ApprovedBy, isSpam: post.Spam, applied: applied);
+                RequestsByRequestID[requestId].RedditPostID = post.Id;
+                RequestsByRequestID[requestId].ApprovedBy = post.Listing.ApprovedBy;
+                RequestsByRequestID[requestId].IsSpam = post.Spam;
+                RequestsByRequestID[requestId].Applied = applied;
+
+                UpdateRequest(requestId, RequestsByRequestID[requestId]);
             }
         }
 
@@ -669,10 +731,15 @@ namespace BernEdBot
             Log("Accepted post " + post.Id);
         }
 
-        private void RejectPost(Post post)
+        private void RejectPost(Post post, string reason = null)
         {
             post.SetFlair("REJECTED");
-            post.Comment("Update request rejected.").Submit();
+
+            Comment comment = post.Comment("Update request rejected.").Submit();
+            if (!string.IsNullOrWhiteSpace(reason))
+            {
+                comment.Reply("Reason: " + reason);
+            }
 
             Log("Rejected post " + post.Id);
         }
@@ -682,13 +749,13 @@ namespace BernEdBot
             PublicationUpdateRequest res = null;
             if (post != null && !string.IsNullOrWhiteSpace(post.SelfText))
             {
-                // Report data will be JSON string enclosed in ``` backticks (markdown for code).  --Kris
-                Match m = Regex.Match(post.SelfText, @"(?<=```\n)(.*?)(?=\n```)");
+                // Report data will be JSON string enclosed in 4 spaces (Reddit markdown for code).  --Kris
+                Match m = Regex.Match(post.SelfText, @"(?<=    )(.*?)(?=    )");
                 if (m != null && m.Success)
                 {
                     try
                     {
-                        res = JsonConvert.DeserializeObject<PublicationUpdateRequest>(m.Value);
+                        res = JsonConvert.DeserializeObject<PublicationUpdateRequest>(m.Value.Trim());
                     }
                     catch (Exception) { }
                 }
@@ -717,12 +784,22 @@ namespace BernEdBot
                 string res = Request.ExecuteRequest(Request.Prepare("/berned/pubChangeRequest?requestId=" + report.RequestId));
                 if (!string.IsNullOrWhiteSpace(res))
                 {
-                    publicationUpdateRequest = JsonConvert.DeserializeObject<PublicationUpdateRequest>(res);
-                    return (publicationUpdateRequest != null);
+                    publicationUpdateRequest = JsonConvert.DeserializeObject<PublicationUpdateRequest>(SanitizeReportJSON(res));
+                    return (publicationUpdateRequest != null && !RequesterIPs.Contains(publicationUpdateRequest.IP));
                 }
             }
 
             return false;
+        }
+
+        private string SanitizeReportJSON(string json)
+        {
+            return json
+                .Trim(new char[] { '[', ']' })
+                .Replace("\\\"", "\"")
+                .Replace("\"oldPublisherJson\":\"", "\"oldPublisherJson\":")
+                .Replace("}\",\"newPublisherJson\":\"", "},\"newPublisherJson\":")
+                .Replace("}\",\"redditPostId\"", "},\"redditPostId\"");
         }
 
         private bool IsCurrentReportPost(Post post)
@@ -733,8 +810,9 @@ namespace BernEdBot
                 && post.Created.AddMonths(1) > DateTime.Now
                 && !post.Spam
                 && !post.Removed
-                && !post.Listing.LinkFlairText.Equals("APPLIED")
-                && !post.Listing.LinkFlairText.Equals("REJECTED"));
+                && (string.IsNullOrEmpty(post.Listing.LinkFlairText) 
+                    || (!post.Listing.LinkFlairText.Equals("APPLIED")
+                        && !post.Listing.LinkFlairText.Equals("REJECTED"))));
         }
 
         /// <summary>
@@ -805,15 +883,28 @@ namespace BernEdBot
         }
 
         /// <summary>
+        /// Output the intro string to the log.
+        /// </summary>
+        public void Intro()
+        {
+            Log("*****************************************" + Environment.NewLine
+                + " Bern-Ed Bot " + Environment.NewLine
+                + " Version " + GetVersion() + NEWLINE
+
+                + " Created by Kris Craig " + Environment.NewLine
+                + "*****************************************" + NEWLINE, showDateTime: false);
+        }
+
+        /// <summary>
         /// Output a log message.
         /// </summary>
         /// <param name="message">The message to be logged</param>
         /// <param name="verboseOnly">If true, the log message will only be displayed if logging is set to verbose</param>
-        public void Log(string message, bool verboseOnly = false)
+        public void Log(string message, bool verboseOnly = false, bool showDateTime = true)
         {
             if (!verboseOnly || LogVerbose)
             {
-                Console.WriteLine("[" + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + "] " + message);
+                Console.WriteLine((showDateTime ? "[" + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + "] " : "") + message);
             }
         }
 
@@ -828,16 +919,21 @@ namespace BernEdBot
                     // Update report in db to set isspam to true.  --Kris
                     UpdateRequest(RequestIdsByPostId[e.NewPost.Id], e.NewPost);
 
-                    RejectPost(e.NewPost);
+                    RejectPost(e.NewPost, "Post has been marked as SPAM by a moderator.");
+                    UnmonitorPost(e.NewPost);
+                }
+                else if (!e.NewPost.Edited.Equals(default))
+                {
+                    RejectPost(e.NewPost, "Post was edited.");
                     UnmonitorPost(e.NewPost);
                 }
                 else if (e.NewPost.Removed
-                    || e.NewPost.Listing.LinkFlairText.Equals("REJECTED"))
+                    || (e.NewPost.Listing.LinkFlairText != null && e.NewPost.Listing.LinkFlairText.Equals("REJECTED")))
                 {
-                    RejectPost(e.NewPost);
+                    RejectPost(e.NewPost, "Post already has REJECTED flair applied.");
                     UnmonitorPost(e.NewPost);
                 }
-                else if (e.NewPost.Listing.LinkFlairText.Equals("APPLIED"))
+                else if (e.NewPost.Listing.LinkFlairText != null && e.NewPost.Listing.LinkFlairText.Equals("APPLIED"))
                 {
                     UnmonitorPost(e.NewPost);
                 }
