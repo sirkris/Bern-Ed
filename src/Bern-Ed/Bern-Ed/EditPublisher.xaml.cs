@@ -35,10 +35,15 @@ namespace Bern_Ed
         private void Button_Clicked(object sender, EventArgs e)
         {
             int? wordLimit = null;
-            int publishInterval = 0;
             try
             {
                 wordLimit = int.Parse(PublisherEdit.EntryWordLimit.Text);
+            }
+            catch (Exception) { }
+
+            int publishInterval = 0;
+            try
+            {
                 publishInterval = int.Parse(PublisherEdit.EntryPublishInterval.Text);
             }
             catch (Exception) { }

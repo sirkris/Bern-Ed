@@ -286,8 +286,8 @@ namespace BernEdBot
             if (!publicationUpdateRequest.OldPublication.City.Equals(publicationUpdateRequest.NewPublication.Notes))
             {
                 res += "### Notes" + NEWLINE;
-                res += "~~" + publicationUpdateRequest.OldPublication.Notes + "~~" + NEWLINE;
-                res += "*" + publicationUpdateRequest.NewPublication.Notes + "*" + NEWLINE;
+                res += "~~" + publicationUpdateRequest.OldPublication.Notes.Replace("|", "~~" + NEWLINE + "~~") + "~~" + NEWLINE;
+                res += "*" + publicationUpdateRequest.NewPublication.Notes.Replace("|", "*" + NEWLINE + "*") + "*" + NEWLINE;
             }
 
             if (!publicationUpdateRequest.OldPublication.ContactURL.Equals(publicationUpdateRequest.NewPublication.ContactURL))
@@ -930,7 +930,7 @@ namespace BernEdBot
                 else if (e.NewPost.Removed
                     || (e.NewPost.Listing.LinkFlairText != null && e.NewPost.Listing.LinkFlairText.Equals("REJECTED")))
                 {
-                    RejectPost(e.NewPost, "Post already has REJECTED flair applied.");
+                    RejectPost(e.NewPost, "Post has been rejected by a moderator.");
                     UnmonitorPost(e.NewPost);
                 }
                 else if (e.NewPost.Listing.LinkFlairText != null && e.NewPost.Listing.LinkFlairText.Equals("APPLIED"))
