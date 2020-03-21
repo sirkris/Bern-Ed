@@ -1,0 +1,39 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://xamarin.com/schemas/2014/forms"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:d="http://xamarin.com/schemas/2014/forms/design"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d"
+             BackgroundColor="#00063A"
+             Title="About Bern-Ed"
+             x:Class="Bern_Ed.About">
+    <ContentPage.Content>
+        <StackLayout>
+            <Label Text="Bern-Ed"
+                   FontSize="Large"
+                   TextColor="White"
+                   FontAttributes="Bold"
+                   VerticalOptions="Start" 
+                   HorizontalOptions="CenterAndExpand" />
+            <Label x:Name="LabelVersion" Text=""
+                   FontSize="Medium"
+                   TextColor="Cyan"
+                   VerticalOptions="Start" 
+                   HorizontalOptions="CenterAndExpand" />
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Image Source="arrested.png" Grid.Row="0" Grid.Column="0" VerticalOptions="Start" />
+                <Label TextColor="White" FontSize="Micro" LineBreakMode="WordWrap" Grid.Row="0" Grid.Column="1" VerticalTextAlignment="Start" HorizontalTextAlignment="Start" 
+                       Text="Bern-Ed is a free and open source mobile app that provides access to the contact information for over 800 newspaper and magazine opinion editors around the country.  This data was gathered by me by scouring the internet over the course of about 3 months back in 2017 when I started writing op-eds and I've since decided to make that database public.&#10;&#10;Turnover is high in the industry now, which means that contact info will change frequently, so this app also provides a means for you to report these changes when you spot them.  This enables us to keep our public database accurate and up-to-date.&#10;&#10;To use this app, simply select a state and you'll get a list of all the local newspapers and magazines in the area along with the contact info for their opinion editor (the person/people you submit your op-eds to for publishing).  All editors in the database have an email address and most have a phone number." />
+            </Grid>
+            <Button Text="Created by Kris Craig" VerticalOptions="EndAndExpand" HorizontalOptions="Center" TextColor="Yellow" BackgroundColor="DarkRed" FontAttributes="Bold" 
+                        Clicked="Button_Clicked" />
+        </StackLayout>
+    </ContentPage.Content>
+</ContentPage>

@@ -1,0 +1,37 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://xamarin.com/schemas/2014/forms"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:d="http://xamarin.com/schemas/2014/forms/design"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d"
+             BackgroundColor="Black"
+             Title="Kris Craig?!  Who the fuck is that?"
+             x:Class="Bern_Ed.AboutAuthor">
+    <ContentPage.Content>
+        <StackLayout>
+            <Label Text="Kris Craig"
+                   FontSize="Large"
+                   TextColor="White"
+                   FontAttributes="Bold"
+                   VerticalOptions="Start" 
+                   HorizontalOptions="CenterAndExpand" />
+            <Label Text="Software Engineer, Writer, Fictional Chair-Thrower"
+                   FontSize="Small"
+                   TextColor="Cyan"
+                   VerticalOptions="Start" 
+                   HorizontalOptions="CenterAndExpand" />
+            <Grid VerticalOptions="StartAndExpand">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Image x:Name="KrisCraig" Source="" Grid.Row="0" Grid.Column="0" VerticalOptions="Start" />
+                <Label TextColor="White" FontSize="Micro" LineBreakMode="WordWrap" Grid.Row="0" Grid.Column="1" VerticalTextAlignment="Start" HorizontalTextAlignment="Start" 
+                       Text="I created this app in response to the unethical media blackout against Bernie Sanders and his supporters, of which I am one.  Most local newspapers are a lot more open to publishing progressive, anti-establishment opinion pieces than their larger national counterparts.  So let your voice be heard!  Let's show the corrupt Neoliberal establishment that the progressive movement cannot be silenced.&#10;&#10;Reddit: u/KrisCraig&#10;&#10;Twitter: @KrisCraig&#10;&#10;LinkedIn: in/KrisCraig&#10;&#10;Github: github.com/sirkris" />
+            </Grid>
+        </StackLayout>
+    </ContentPage.Content>
+</ContentPage>
