@@ -21,7 +21,7 @@ namespace Bern_Ed
 
         private void ToolbarItem_About_Clicked(object sender, EventArgs e)
         {
-            // TODO
+            Navigation.PushAsync(new About());
         }
     }
 }
