@@ -1,4 +1,5 @@
 ﻿using Bern_Ed.Structures;
+using System;
 using Xamarin.Forms;
 
 namespace Bern_Ed.Grids
@@ -220,7 +221,7 @@ namespace Bern_Ed.Grids
             Grid.Children.Add(
                 new Label
                 {
-                    Text = publication.Notes,
+                    Text = publication.Notes.Replace("|", Environment.NewLine),
                     TextColor = Color.Black,
                     FontSize = Device.GetNamedSize(NamedSize.Small, typeof(Label)),
                     VerticalOptions = LayoutOptions.StartAndExpand
