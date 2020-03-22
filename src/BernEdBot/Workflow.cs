@@ -72,9 +72,9 @@ namespace BernEdBot
                             .Replace("\"oldPublisherJson\":\"", "\"oldPublisherJson\":")
                             .Replace("}\",\"newPublisherJson\":\"", "},\"newPublisherJson\":")
                             .Replace("}\",\"redditPostId\"", "},\"redditPostId\"");
-                    }
 
-                    RequestQueue = JsonConvert.DeserializeObject<IList<PublicationUpdateRequest>>(res);
+                        RequestQueue = JsonConvert.DeserializeObject<IList<PublicationUpdateRequest>>(res);
+                    }
                 }
 
                 return requestQueue;
@@ -177,10 +177,13 @@ namespace BernEdBot
 
                 foreach (PublicationUpdateRequest publicationUpdateRequest in RequestQueue)
                 {
-                    MonitorPost(CreatePost(publicationUpdateRequest), publicationUpdateRequest);
-                    if (Posts.Count.Equals(MAX_ACTIVE_POSTS))
+                    if (string.IsNullOrEmpty(publicationUpdateRequest.RedditPostID))
                     {
-                        break;
+                        MonitorPost(CreatePost(publicationUpdateRequest), publicationUpdateRequest);
+                        if (Posts.Count.Equals(MAX_ACTIVE_POSTS))
+                        {
+                            break;
+                        }
                     }
                 }
 
@@ -455,7 +458,7 @@ namespace BernEdBot
                         }
                         catch (Exception) { }
 
-                        PublicationUpdateRequest report = GetReportData(pair.Value);
+                        PublicationUpdateRequest report = RefreshRequest(GetReportData(pair.Value));
                         if (report == null
                             || !report.Equals(publicationUpdateRequest))
                         {
@@ -511,7 +514,7 @@ namespace BernEdBot
             if (PostIsReady(post))
             {
                 // Update our publisher in the db.  --Kris
-                PublicationUpdateRequest publicationUpdateRequest = GetReportData(post);
+                PublicationUpdateRequest publicationUpdateRequest = RefreshRequest(GetReportData(post));
 
                 Log("Request #" + publicationUpdateRequest.RequestId.ToString() + " to update " + publicationUpdateRequest.OldPublication.Name + " (postId=" + post.Id + ") meets all criteria!");
 
@@ -532,6 +535,9 @@ namespace BernEdBot
 
                 // Mark the post as applied.  --Kris
                 AcceptPost(post);
+
+                publicationUpdateRequest.Applied = DateTime.Now;
+                publicationUpdateRequest.ApprovedBy = post.Listing.ApprovedBy;
 
                 // Update the request.  --Kris
                 UpdateRequest(RequestIdsByPostId[post.Id], publicationUpdateRequest);
@@ -790,6 +796,31 @@ namespace BernEdBot
             }
 
             return false;
+        }
+
+        private PublicationUpdateRequest RefreshRequest(PublicationUpdateRequest publicationUpdateRequest, int retry = 30)
+        {
+            if (publicationUpdateRequest == null)
+            {
+                return null;
+            }
+
+            string res = Request.ExecuteRequest(Request.Prepare("/berned/pubChangeRequest?requestId=" + publicationUpdateRequest.RequestId));
+            if (!string.IsNullOrWhiteSpace(res))
+            {
+                return JsonConvert.DeserializeObject<PublicationUpdateRequest>(SanitizeReportJSON(res));
+            }
+            else
+            {
+                if ((--retry).Equals(0))
+                {
+                    throw new ArgumentException("API refresh of PublicationUpdateRequest with RequestId " + publicationUpdateRequest.RequestId.ToString() + " failed!");
+                }
+
+                Thread.Sleep(30000);
+
+                return RefreshRequest(publicationUpdateRequest, retry);
+            }
         }
 
         private string SanitizeReportJSON(string json)
