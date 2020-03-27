@@ -220,6 +220,23 @@ namespace BernEdBot
             return res;
         }
 
+        private bool Changed(string oldS, string newS)
+        {
+            if (string.IsNullOrEmpty(oldS) && string.IsNullOrEmpty(newS))
+            {
+                return false;
+            }
+
+            return ((string.IsNullOrEmpty(oldS) && !string.IsNullOrEmpty(newS))
+                || (!string.IsNullOrEmpty(oldS) && string.IsNullOrEmpty(newS))
+                || (!oldS.Equals(newS)));
+        }
+
+        private string DisplayChangeVal(string value)
+        {
+            return (!string.IsNullOrWhiteSpace(value) ? value : "(none)");
+        }
+
         private string GetChanges(PublicationUpdateRequest publicationUpdateRequest)
         {
             string res = "";
@@ -230,53 +247,53 @@ namespace BernEdBot
                 return "**THE DATA FROM THIS REQUEST IS CORRUPTED!  PLEASE REJECT TO AVOID COMPROMISING DATA INTEGRITY!**";
             }
 
-            if (!publicationUpdateRequest.OldPublication.City.Equals(publicationUpdateRequest.NewPublication.City))
+            if (Changed(publicationUpdateRequest.OldPublication.City, publicationUpdateRequest.NewPublication.City))
             {
                 res += "### City" + NEWLINE;
-                res += "~~" + publicationUpdateRequest.OldPublication.City + "~~" + NEWLINE;
-                res += "*" + publicationUpdateRequest.NewPublication.City + "*" + NEWLINE;
+                res += "~~" + DisplayChangeVal(publicationUpdateRequest.OldPublication.City) + "~~" + NEWLINE;
+                res += "*" + DisplayChangeVal(publicationUpdateRequest.NewPublication.City) + "*" + NEWLINE;
             }
 
-            if (!publicationUpdateRequest.OldPublication.StateAbbr.Equals(publicationUpdateRequest.NewPublication.StateAbbr))
+            if (Changed(publicationUpdateRequest.OldPublication.StateAbbr, publicationUpdateRequest.NewPublication.StateAbbr))
             {
                 res += "### State" + NEWLINE;
-                res += "~~" + publicationUpdateRequest.OldPublication.StateAbbr + "~~" + NEWLINE;
-                res += "*" + publicationUpdateRequest.NewPublication.StateAbbr + "*" + NEWLINE;
+                res += "~~" + DisplayChangeVal(publicationUpdateRequest.OldPublication.StateAbbr) + "~~" + NEWLINE;
+                res += "*" + DisplayChangeVal(publicationUpdateRequest.NewPublication.StateAbbr) + "*" + NEWLINE;
             }
 
-            if (!publicationUpdateRequest.OldPublication.Email.Equals(publicationUpdateRequest.NewPublication.Email))
+            if (Changed(publicationUpdateRequest.OldPublication.Email, publicationUpdateRequest.NewPublication.Email))
             {
                 res += "### Email" + NEWLINE;
-                res += "~~" + publicationUpdateRequest.OldPublication.Email + "~~" + NEWLINE;
-                res += "*" + publicationUpdateRequest.NewPublication.Email + "*" + NEWLINE;
+                res += "~~" + DisplayChangeVal(publicationUpdateRequest.OldPublication.Email) + "~~" + NEWLINE;
+                res += "*" + DisplayChangeVal(publicationUpdateRequest.NewPublication.Email) + "*" + NEWLINE;
             }
 
-            if (!publicationUpdateRequest.OldPublication.Phone.Equals(publicationUpdateRequest.NewPublication.Phone))
+            if (Changed(publicationUpdateRequest.OldPublication.Phone, publicationUpdateRequest.NewPublication.Phone))
             {
                 res += "### Phone" + NEWLINE;
-                res += "~~" + publicationUpdateRequest.OldPublication.Phone + "~~" + NEWLINE;
-                res += "*" + publicationUpdateRequest.NewPublication.Phone + "*" + NEWLINE;
+                res += "~~" + DisplayChangeVal(publicationUpdateRequest.OldPublication.Phone) + "~~" + NEWLINE;
+                res += "*" + DisplayChangeVal(publicationUpdateRequest.NewPublication.Phone) + "*" + NEWLINE;
             }
 
-            if (!publicationUpdateRequest.OldPublication.POCTitle.Equals(publicationUpdateRequest.NewPublication.POCTitle))
+            if (Changed(publicationUpdateRequest.OldPublication.POCTitle, publicationUpdateRequest.NewPublication.POCTitle))
             {
                 res += "### Contact Title" + NEWLINE;
-                res += "~~" + publicationUpdateRequest.OldPublication.POCTitle + "~~" + NEWLINE;
-                res += "*" + publicationUpdateRequest.NewPublication.POCTitle + "*" + NEWLINE;
+                res += "~~" + DisplayChangeVal(publicationUpdateRequest.OldPublication.POCTitle) + "~~" + NEWLINE;
+                res += "*" + DisplayChangeVal(publicationUpdateRequest.NewPublication.POCTitle) + "*" + NEWLINE;
             }
 
-            if (!publicationUpdateRequest.OldPublication.POC.Equals(publicationUpdateRequest.NewPublication.POC))
+            if (Changed(publicationUpdateRequest.OldPublication.POC, publicationUpdateRequest.NewPublication.POC))
             {
                 res += "### Contact Name" + NEWLINE;
-                res += "~~" + publicationUpdateRequest.OldPublication.POC + "~~" + NEWLINE;
-                res += "*" + publicationUpdateRequest.NewPublication.POC + "*" + NEWLINE;
+                res += "~~" + DisplayChangeVal(publicationUpdateRequest.OldPublication.POC) + "~~" + NEWLINE;
+                res += "*" + DisplayChangeVal(publicationUpdateRequest.NewPublication.POC) + "*" + NEWLINE;
             }
 
             if (!publicationUpdateRequest.OldPublication.WordLimit.Equals(publicationUpdateRequest.NewPublication.WordLimit))
             {
                 res += "### Word Limit" + NEWLINE;
-                res += (publicationUpdateRequest.OldPublication.WordLimit.HasValue ? "~~" + publicationUpdateRequest.OldPublication.WordLimit + "~~" + NEWLINE : "");
-                res += (publicationUpdateRequest.NewPublication.WordLimit.HasValue ? "*" + publicationUpdateRequest.NewPublication.WordLimit + "*" + NEWLINE : "");
+                res += (publicationUpdateRequest.OldPublication.WordLimit.HasValue ? "~~" + DisplayChangeVal(publicationUpdateRequest.OldPublication.WordLimit.ToString()) + "~~" + NEWLINE : "");
+                res += (publicationUpdateRequest.NewPublication.WordLimit.HasValue ? "*" + DisplayChangeVal(publicationUpdateRequest.NewPublication.WordLimit.ToString()) + "*" + NEWLINE : "");
             }
 
             if (!publicationUpdateRequest.OldPublication.DaysWaitAfterPublish.Equals(publicationUpdateRequest.NewPublication.DaysWaitAfterPublish))
@@ -286,25 +303,25 @@ namespace BernEdBot
                 res += "*" + publicationUpdateRequest.NewPublication.DaysWaitAfterPublish.ToString() + " days" + "*" + NEWLINE;
             }
 
-            if (!publicationUpdateRequest.OldPublication.City.Equals(publicationUpdateRequest.NewPublication.Notes))
+            if (Changed(publicationUpdateRequest.OldPublication.Notes, publicationUpdateRequest.NewPublication.Notes))
             {
                 res += "### Notes" + NEWLINE;
-                res += "~~" + publicationUpdateRequest.OldPublication.Notes.Replace("|", "~~" + NEWLINE + "~~") + "~~" + NEWLINE;
-                res += "*" + publicationUpdateRequest.NewPublication.Notes.Replace("|", "*" + NEWLINE + "*") + "*" + NEWLINE;
+                res += "~~" + DisplayChangeVal(publicationUpdateRequest.OldPublication.Notes.Replace("|", "~~" + NEWLINE + "~~")) + "~~" + NEWLINE;
+                res += "*" + DisplayChangeVal(publicationUpdateRequest.NewPublication.Notes.Replace("|", "*" + NEWLINE + "*")) + "*" + NEWLINE;
             }
 
-            if (!publicationUpdateRequest.OldPublication.ContactURL.Equals(publicationUpdateRequest.NewPublication.ContactURL))
+            if (Changed(publicationUpdateRequest.OldPublication.ContactURL, publicationUpdateRequest.NewPublication.ContactURL))
             {
                 res += "### Source" + NEWLINE;
-                res += "~~" + publicationUpdateRequest.OldPublication.ContactURL + "~~" + NEWLINE;
-                res += "*" + publicationUpdateRequest.NewPublication.ContactURL + "*" + NEWLINE;
+                res += "~~" + DisplayChangeVal(publicationUpdateRequest.OldPublication.ContactURL) + "~~" + NEWLINE;
+                res += "*" + DisplayChangeVal(publicationUpdateRequest.NewPublication.ContactURL) + "*" + NEWLINE;
             }
 
-            if (!publicationUpdateRequest.OldPublication.Website.Equals(publicationUpdateRequest.NewPublication.Website))
+            if (Changed(publicationUpdateRequest.OldPublication.Website, publicationUpdateRequest.NewPublication.Website))
             {
                 res += "### Website" + NEWLINE;
-                res += "~~" + publicationUpdateRequest.OldPublication.Website + "~~" + NEWLINE;
-                res += "*" + publicationUpdateRequest.NewPublication.Website + "*" + NEWLINE;
+                res += "~~" + DisplayChangeVal(publicationUpdateRequest.OldPublication.Website) + "~~" + NEWLINE;
+                res += "*" + DisplayChangeVal(publicationUpdateRequest.NewPublication.Website) + "*" + NEWLINE;
             }
 
             if (!publicationUpdateRequest.OldPublication.RequiresLocalTieIn.Equals(publicationUpdateRequest.NewPublication.RequiresLocalTieIn))
