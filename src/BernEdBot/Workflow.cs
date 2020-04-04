@@ -90,6 +90,7 @@ namespace BernEdBot
 
         private DateTime? LastPostClean { get; set; }
         private DateTime? LastApprovalCheck { get; set; }
+        private DateTime? LastRejectionCheck { get; set; }
 
         private Request Request { get; set; }
         private Subreddit Subreddit { get; set; }
@@ -100,6 +101,7 @@ namespace BernEdBot
         private IDictionary<string, int> RequestIdsByPostId { get; set; }
         private HashSet<string> RequesterIPs { get; set; }
         private IDictionary<int, PublicationUpdateRequest> RequestsByRequestID { get; set; }
+        private IDictionary<string, Post> UnmonitorQueue { get; set; }
 
         private bool LogVerbose { get; set; } = false;
 
@@ -131,6 +133,8 @@ namespace BernEdBot
             RequestIdsByPostId = new Dictionary<string, int>();
             RequesterIPs = new HashSet<string>();
             RequestsByRequestID = new Dictionary<int, PublicationUpdateRequest>();
+            UnmonitorQueue = new Dictionary<string, Post>();
+
             Request = new Request();
             Subreddit = RedditClient.Subreddit(SUBREDDIT);
 
@@ -149,7 +153,9 @@ namespace BernEdBot
             {
                 CleanPosts();
                 CheckPostApprovals();
+                CheckPostRejections();
                 ExecuteQueue();
+                UnmonitorPosts();
 
                 Thread.Sleep(60000);
             }
@@ -177,7 +183,7 @@ namespace BernEdBot
 
                 foreach (PublicationUpdateRequest publicationUpdateRequest in RequestQueue)
                 {
-                    if (string.IsNullOrEmpty(publicationUpdateRequest.RedditPostID))
+                    if (string.IsNullOrEmpty(publicationUpdateRequest.RedditPostID) && !RequesterIPs.Contains(RefreshRequestIP(publicationUpdateRequest).IP))
                     {
                         MonitorPost(CreatePost(publicationUpdateRequest), publicationUpdateRequest);
                         if (Posts.Count.Equals(MAX_ACTIVE_POSTS))
@@ -232,8 +238,13 @@ namespace BernEdBot
                 || (!oldS.Equals(newS)));
         }
 
-        private string DisplayChangeVal(string value)
+        private string DisplayChangeVal(string value, string delimiter = "~~")
         {
+            if (!string.IsNullOrWhiteSpace(value) && value.Contains('|'))
+            {
+                value = value.Replace("|", delimiter + NEWLINE + delimiter).Replace((delimiter + delimiter), "");
+            }
+
             return (!string.IsNullOrWhiteSpace(value) ? value : "(none)");
         }
 
@@ -303,11 +314,12 @@ namespace BernEdBot
                 res += "*" + publicationUpdateRequest.NewPublication.DaysWaitAfterPublish.ToString() + " days" + "*" + NEWLINE;
             }
 
-            if (Changed(publicationUpdateRequest.OldPublication.Notes, publicationUpdateRequest.NewPublication.Notes))
+            if (Changed(publicationUpdateRequest.OldPublication.Notes, publicationUpdateRequest.NewPublication.Notes)
+                && !publicationUpdateRequest.NewPublication.Notes.TrimEnd().EndsWith("|"))
             {
                 res += "### Notes" + NEWLINE;
-                res += "~~" + DisplayChangeVal(publicationUpdateRequest.OldPublication.Notes.Replace("|", "~~" + NEWLINE + "~~")) + "~~" + NEWLINE;
-                res += "*" + DisplayChangeVal(publicationUpdateRequest.NewPublication.Notes.Replace("|", "*" + NEWLINE + "*")) + "*" + NEWLINE;
+                res += "~~" + DisplayChangeVal(publicationUpdateRequest.OldPublication.Notes.Trim('|')) + "~~" + NEWLINE;
+                res += "*" + DisplayChangeVal(publicationUpdateRequest.NewPublication.Notes.Trim('|'), "*") + "*" + NEWLINE;
             }
 
             if (Changed(publicationUpdateRequest.OldPublication.ContactURL, publicationUpdateRequest.NewPublication.ContactURL))
@@ -391,11 +403,26 @@ namespace BernEdBot
             Log("Post scan complete.  Found " + Posts.Count.ToString() + " post" + (!Posts.Count.Equals(1) ? "s" : "") + ".");
         }
 
+        private PublicationUpdateRequest RefreshRequestIP(PublicationUpdateRequest publicationUpdateRequest)
+        {
+            if (publicationUpdateRequest.IP.Equals("(hidden)"))
+            {
+                publicationUpdateRequest = RefreshRequest(publicationUpdateRequest);
+                if (publicationUpdateRequest.IP.Equals("(hidden)"))
+                {
+                    throw new Exception("Unable to retrieve IP address for request.  Possible database corruption?");
+                }
+            }
+
+            return publicationUpdateRequest;
+        }
+
         private void MonitorPost(SelfPost post, PublicationUpdateRequest publicationUpdateRequest)
         {
+            publicationUpdateRequest = RefreshRequestIP(publicationUpdateRequest);
             if (post != null && !RequesterIPs.Contains(publicationUpdateRequest.IP))
             {
-                Log("Monitoring post (postId=" + post.Id + ", requestId=" + publicationUpdateRequest.RequestId.ToString() + ")....");
+                Log("Monitoring post (postId=" + post.Id + ", requestId=" + publicationUpdateRequest.RequestId.ToString() + ", IP=" + publicationUpdateRequest.IP + ")....");
 
                 post.PostDataUpdated += C_PostUpdated;
                 post.MonitorPostData(monitoringBaseDelayMs: 15000);
@@ -410,14 +437,42 @@ namespace BernEdBot
             }
         }
 
+        private void UnmonitorPosts()
+        {
+            IList<string> removeIds = new List<string>();
+            foreach (KeyValuePair<string, Post> pair in UnmonitorQueue)
+            {
+                try
+                {
+                    pair.Value.MonitorPostData();
+                    pair.Value.MonitorPostScore();
+
+                    removeIds.Add(pair.Key);
+                }
+                catch (Exception ex)
+                {
+                    Log("Warning: Exception attempting to unmonitor post " + pair.Key + " : " + ex.Message);
+                }
+            }
+
+            foreach (string id in removeIds)
+            {
+                UnmonitorQueue.Remove(id);
+            }
+
+            if (!removeIds.Count.Equals(0))
+            {
+                Log("Removed " + removeIds.Count.ToString() + " post" + (!removeIds.Count.Equals(1) ? "s" : "") + " from monitoring.");
+            }
+        }
+
         private void UnmonitorPost(PublicationUpdateRequest publicationUpdateRequest)
         {
             if (Posts.ContainsKey(publicationUpdateRequest.RequestId))
             {
-                Posts[publicationUpdateRequest.RequestId].MonitorPostData();
-                Posts[publicationUpdateRequest.RequestId].PostDataUpdated -= C_PostUpdated;
+                UnmonitorQueue.Add(Posts[publicationUpdateRequest.RequestId].Id, Posts[publicationUpdateRequest.RequestId]);
 
-                Posts[publicationUpdateRequest.RequestId].MonitorPostScore();
+                Posts[publicationUpdateRequest.RequestId].PostDataUpdated -= C_PostUpdated;
                 Posts[publicationUpdateRequest.RequestId].PostScoreUpdated -= C_PostUpdated;
 
                 Log("Stopped monitoring post (postId=" + Posts[publicationUpdateRequest.RequestId].Id + ", requestId=" + publicationUpdateRequest.RequestId.ToString() + ").");
@@ -525,6 +580,37 @@ namespace BernEdBot
             }
         }
 
+        // Manually scans the posts for any that have been rejected.  --Kris
+        private void CheckPostRejections()
+        {
+            if (!LastRejectionCheck.HasValue
+                || LastRejectionCheck.Value.AddMinutes(5) < DateTime.Now)
+            {
+                Log("Checking posts for rejection....");
+
+                IDictionary<int, string> removeIds = new Dictionary<int, string>();
+                foreach (KeyValuePair<int, SelfPost> pair in Posts)
+                {
+                    if (PostIsDead(pair.Value.About(), out string reason))
+                    {
+                        removeIds.Add(pair.Key, reason);
+                    }
+                }
+
+                foreach (KeyValuePair<int, string> pair in removeIds)
+                {
+                    RejectPost(Posts[pair.Key], pair.Value);
+                    UnmonitorPost(pair.Key);
+                }
+
+                RequestQueue = null;
+
+                LastRejectionCheck = DateTime.Now;
+
+                Log("Post rejection scan complete.  Removed " + removeIds.Count.ToString() + " post" + (!removeIds.Count.Equals(1) ? "s" : "") + " from monitoring.");
+            }
+        }
+
         // Checks to see if the post meets the criteria for approval.  If it does, apply the publisher updates and return true.  --Kris
         private bool CheckPostIsReady(SelfPost post)
         {
@@ -580,6 +666,38 @@ namespace BernEdBot
                 && (string.IsNullOrEmpty(post.Listing.LinkFlairText) || !post.Listing.LinkFlairText.Equals("APPLIED"))
                 && post.Score > 0 
                 && (post.UpvoteRatio.Equals(0) || post.UpvoteRatio > 0.5));
+        }
+
+        private bool PostIsDead(SelfPost post, out string reason)
+        {
+            reason = null;
+            if (post == null)
+            {
+                reason = "Post is null.";
+            }
+            else if (post.Created.AddDays(30) <= DateTime.Now)
+            {
+                reason = "Request has expired.";
+            }
+            else if (post.Removed || (!string.IsNullOrEmpty(post.Listing.LinkFlairText) && post.Listing.LinkFlairText.Equals("REJECTED")))
+            {
+                reason = "Request was rejected by a moderator.";
+            }
+            else if (post.Spam)
+            {
+                reason = "Request was marked as spam by a moderator.";
+            }
+            else if (!post.Listing.Edited.Equals(default))
+            {
+                reason = "Post was edited.";
+            }
+
+            return !string.IsNullOrEmpty(reason);
+        }
+
+        private bool PostIsDead(SelfPost post)
+        {
+            return PostIsDead(post, out _);
         }
 
         private void UpdatePublisher(int pubId, string email = null, string phone = null, string pocTitle = null, string poc = null, int? wordLimit = null, string notes = null, 
@@ -749,7 +867,7 @@ namespace BernEdBot
         private void AcceptPost(Post post)
         {
             post.SetFlair("APPLIED");
-            post.Comment("Update request applied.").Submit();
+            post.Comment("Update request applied.").Submit().Distinguish("yes", true);
 
             Log("Accepted post " + post.Id);
         }
@@ -759,12 +877,13 @@ namespace BernEdBot
             post.SetFlair("REJECTED");
 
             Comment comment = post.Comment("Update request rejected.").Submit();
+            comment.Distinguish("yes", true);
             if (!string.IsNullOrWhiteSpace(reason))
             {
-                comment.Reply("Reason: " + reason);
+                comment.Reply("Reason: " + reason).Distinguish("yes");
             }
 
-            Log("Rejected post " + post.Id);
+            Log("Rejected post " + post.Id + (!string.IsNullOrWhiteSpace(reason) ? " - Reason: " + reason : ""));
         }
 
         private PublicationUpdateRequest GetReportData(SelfPost post)
