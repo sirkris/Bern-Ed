@@ -13,10 +13,36 @@ namespace Bern_Ed
     [XamlCompilation(XamlCompilationOptions.Compile)]
     public partial class About : ContentPage
     {
+        private IList<string> ImageURLs { get; set; } = new List<string>
+        {
+            "https://i.imgur.com/WpvgEyo.png",
+            "https://i.imgur.com/HgfklAV.png",
+            "https://i.imgur.com/c2GdsGM.png",
+            "https://i.imgur.com/iq7rtta.png",
+            "https://i.imgur.com/6HiNSl6.png",
+            "https://i.imgur.com/vzJHOcE.png",
+            "https://i.imgur.com/QBQI6H2.png",
+            "https://i.imgur.com/YSJjQ3T.png",
+            "https://i.imgur.com/EAqbYE2.png",
+            "https://i.imgur.com/Y5QXRWr.png"
+        };
+
+        private IList<Image> AuthorPhotos { get; set; }
+
         public About()
         {
             InitializeComponent();
             PopulateFields();
+            PreloadAuthorImages();
+        }
+
+        private void PreloadAuthorImages()
+        {
+            AuthorPhotos = new List<Image>();
+            foreach (string url in ImageURLs)
+            {
+                AuthorPhotos.Add(new Image { Source = url });
+            }
         }
 
         private void PopulateFields()
@@ -99,7 +125,7 @@ namespace Bern_Ed
 
         private void Button_Clicked(object sender, EventArgs e)
         {
-            Navigation.PushAsync(new AboutAuthor());
+            Navigation.PushAsync(new AboutAuthor(AuthorPhotos));
         }
     }
 }

@@ -210,6 +210,7 @@ namespace Bern_Ed.Grids
             TapGestureRecognizer labelWebsiteTap = new TapGestureRecognizer();
             labelWebsiteTap.Tapped += C_URLClicked;
 
+            labelWebsite.GestureRecognizers.Add(labelWebsiteTap);
             Grid.Children.Add(labelWebsite, 1, 8);
 
             Grid.Children.Add(
@@ -254,12 +255,19 @@ namespace Bern_Ed.Grids
             TapGestureRecognizer labelSourceTap = new TapGestureRecognizer();
             labelSourceTap.Tapped += C_URLClicked;
 
+            labelSource.GestureRecognizers.Add(labelSourceTap);
             Grid.Children.Add(labelSource, 1, 10);
         }
 
         public void C_URLClicked(object sender, EventArgs e)
         {
-            Launcher.OpenAsync(((Label)sender).Text);  // Opens URL in the default browser.  --Kris
+            string url = ((Label)sender).Text;
+            if (!url.StartsWith("http"))
+            {
+                url = "http://" + url;
+            }
+
+            Launcher.OpenAsync(url);  // Opens URL in the default browser.  --Kris
         }
     }
 }
