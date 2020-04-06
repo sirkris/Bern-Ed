@@ -35,9 +35,9 @@ namespace Bern_Ed
                 ImageIndex = 0;
             }
 
-            KrisCraig.FadeTo(1);
+            KrisCraig.FadeTo(1, easing: Easing.SinIn);
             KrisCraig.Source = AuthorPhotos[ImageIndex].Source;
-            KrisCraig.FadeTo(100);
+            KrisCraig.FadeTo(100, easing: Easing.SinIn);
         }
     }
 }
