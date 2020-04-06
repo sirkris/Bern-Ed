@@ -14,22 +14,4 @@ Ready to write your first op-ed?  Stay tuned for guides and tips on how to get y
 |:---------:|-----:|:------|
 $PUBTABLE$
 
-The above is just a partial list because Reddit limits how long the sidebar can be.
-
-Use the [Bern-Ed app](https://play.google.com/store/apps/details?id=com.kriscraig.berned) to view the full list of publications.
-
-### Our Friends
-
-r/StillSandersForPres
-
-r/WayOfTheBern
-
-r/WayOfTheWriter
-
-r/Kossacks_for_Sanders
-
-r/Bernie
-
-r/Bernie2020
-
-r/Political_Revolution
+Use the [Bern-Ed app](https://play.google.com/store/apps/details?id=com.kriscraig.berned) to view the full list of publications for all states.

@@ -55,7 +55,7 @@ namespace BernEdBot
         {
             IRestResponse res = RestClient.Execute(restRequest);
 
-            int retry = 5;
+            int retry = 30;
             do
             {
                 if (res != null && res.IsSuccessful)
@@ -74,7 +74,7 @@ namespace BernEdBot
                         throw ex;
                     }
 
-                    Thread.Sleep(3000);
+                    Thread.Sleep(60000);
 
                     res = RestClient.Execute(restRequest);
                 }

@@ -104,6 +104,8 @@ namespace BernEdBot
         private IDictionary<int, PublicationUpdateRequest> RequestsByRequestID { get; set; }
         private IDictionary<string, Post> UnmonitorQueue { get; set; }
 
+        private Random Random { get; set; }
+
         private bool LogVerbose { get; set; } = false;
 
         private const string SUBREDDIT = "FreeOpinionSyndicate";
@@ -138,6 +140,8 @@ namespace BernEdBot
 
             Request = new Request();
             Subreddit = RedditClient.Subreddit(SUBREDDIT);
+
+            Random = new Random();
 
             Log("Initialization complete.");
         }
@@ -374,18 +378,83 @@ namespace BernEdBot
         private void RefreshSidebar()
         {
             if (!LastSidebarRefresh.HasValue
-                || LastSidebarRefresh.Value.AddHours(12) <= DateTime.Now)
+                || LastSidebarRefresh.Value.AddHours(6) <= DateTime.Now)
             {
                 Log("Refreshing sidebar for r/" + SUBREDDIT + "....");
                 
                 string sidebarTemplate = File.ReadAllText(Path.Combine(Environment.CurrentDirectory, "Sidebar.md"));
                 if (sidebarTemplate.Contains(@"$PUBTABLE$"))
                 {
-                    IList<Publication> publications = GetPublications();
+                    bool allStates = Random.Next(1, 10).Equals(1);
+                    IList<Publication> publications;
+                    if (allStates)
+                    {
+                        publications = GetPublications();
+                    }
+                    else
+                    {
+                        IList<string> states = new List<string>
+                        {
+                            "AL",
+                            "AK",
+                            "AZ",
+                            "AR",
+                            "CA",
+                            "CO",
+                            "CT",
+                            "DE",
+                            "FL",
+                            "GA",
+                            "HI",
+                            "ID",
+                            "IL",
+                            "IN",
+                            "IA",
+                            "KS",
+                            "KY",
+                            "LA",
+                            "ME",
+                            "MD",
+                            "MA",
+                            "MI",
+                            "MN",
+                            "MS",
+                            "MO",
+                            "MT",
+                            "NE",
+                            "NV",
+                            "NH",
+                            "NJ",
+                            "NM",
+                            "NY",
+                            "NC",
+                            "ND",
+                            "OH",
+                            "OK",
+                            "OR",
+                            "PA",
+                            "RI",
+                            "SC",
+                            "SD",
+                            "TN",
+                            "TX",
+                            "UT",
+                            "VT",
+                            "VA",
+                            "WA",
+                            "WV",
+                            "WI",
+                            "WY"
+                        };
+
+                        publications = GetPublications(states[Random.Next(0, states.Count)], "city");
+                    }
+
                     if (publications != null)
                     {
-                        int limitPerState = 4;  // Necessary to accommodate sidebar length limit.  --Kris
+                        int limitPerState = (allStates ? 3 : 0);  // Necessary to accommodate sidebar length limit.  --Kris
                         IDictionary<string, int> countsByState = new Dictionary<string, int>();
+                        
                         string pubTable = "";
                         foreach (Publication publication in publications)
                         {
@@ -394,14 +463,15 @@ namespace BernEdBot
                                 countsByState.Add(publication.StateAbbr, 0);
                             }
 
-                            if (!countsByState[publication.StateAbbr].Equals(limitPerState))
+                            if (limitPerState.Equals(0) || !countsByState[publication.StateAbbr].Equals(limitPerState))
                             {
-                                pubTable += "| " + publication.Name + " | " + publication.City + " | " + publication.StateAbbr + " |" + Environment.NewLine;
+                                pubTable += "| [" + publication.Name + "](//" + publication.Website + ") | " + publication.City + " | " + publication.StateAbbr + " |" + Environment.NewLine;
                                 countsByState[publication.StateAbbr]++;
                             }
                         }
 
-                        pubTable += Environment.NewLine + "**Total Publications:** " + publications.Count.ToString() + Environment.NewLine;
+                        pubTable += Environment.NewLine + "**Total Publications" + (!allStates ? " in " + publications[0].StateAbbr : "") 
+                            + ":** " + publications.Count.ToString() + Environment.NewLine;
 
                         sidebarTemplate = sidebarTemplate.Replace(@"$PUBTABLE$", pubTable);
                     }
@@ -425,11 +495,12 @@ namespace BernEdBot
             }
         }
 
-        private IList<Publication> GetPublications(int retry = 30)
+        private IList<Publication> GetPublications(string stateAbbr = null, string orderBy = "stateAbbr", int retry = 30)
         {
             try
             {
-                string res = Request.ExecuteRequest(Request.Prepare("/opmail/publications?enabled=1&orderBy=stateAbbr&limit=1000"));
+                string res = Request.ExecuteRequest(Request.Prepare("/opmail/publications?enabled=1&orderBy=" + orderBy + "&limit=1000" 
+                    + (!string.IsNullOrWhiteSpace(stateAbbr) ? "&stateAbbr=" + stateAbbr : "")));
                 if (string.IsNullOrWhiteSpace(res))
                 {
                     if ((--retry).Equals(0))
@@ -439,7 +510,7 @@ namespace BernEdBot
                     else
                     {
                         Thread.Sleep(60000);
-                        return GetPublications(retry);
+                        return GetPublications(stateAbbr, orderBy, retry);
                     }
                 }
 
@@ -454,7 +525,7 @@ namespace BernEdBot
                 else
                 {
                     Thread.Sleep(60000);
-                    return GetPublications(retry);
+                    return GetPublications(stateAbbr, orderBy, retry);
                 }
             }
         }
