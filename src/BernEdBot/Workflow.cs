@@ -91,6 +91,7 @@ namespace BernEdBot
         private DateTime? LastPostClean { get; set; }
         private DateTime? LastApprovalCheck { get; set; }
         private DateTime? LastRejectionCheck { get; set; }
+        private DateTime? LastSidebarRefresh { get; set; }
 
         private Request Request { get; set; }
         private Subreddit Subreddit { get; set; }
@@ -151,6 +152,7 @@ namespace BernEdBot
             Active = true;
             while (Active)
             {
+                RefreshSidebar();
                 CleanPosts();
                 CheckPostApprovals();
                 CheckPostRejections();
@@ -367,6 +369,94 @@ namespace BernEdBot
         private string GetInstructions()
         {
             return File.ReadAllText(Path.Combine(Environment.CurrentDirectory, "PostInstructions.md"));
+        }
+
+        private void RefreshSidebar()
+        {
+            if (!LastSidebarRefresh.HasValue
+                || LastSidebarRefresh.Value.AddHours(12) <= DateTime.Now)
+            {
+                Log("Refreshing sidebar for r/" + SUBREDDIT + "....");
+                
+                string sidebarTemplate = File.ReadAllText(Path.Combine(Environment.CurrentDirectory, "Sidebar.md"));
+                if (sidebarTemplate.Contains(@"$PUBTABLE$"))
+                {
+                    IList<Publication> publications = GetPublications();
+                    if (publications != null)
+                    {
+                        int limitPerState = 4;  // Necessary to accommodate sidebar length limit.  --Kris
+                        IDictionary<string, int> countsByState = new Dictionary<string, int>();
+                        string pubTable = "";
+                        foreach (Publication publication in publications)
+                        {
+                            if (!countsByState.ContainsKey(publication.StateAbbr))
+                            {
+                                countsByState.Add(publication.StateAbbr, 0);
+                            }
+
+                            if (!countsByState[publication.StateAbbr].Equals(limitPerState))
+                            {
+                                pubTable += "| " + publication.Name + " | " + publication.City + " | " + publication.StateAbbr + " |" + Environment.NewLine;
+                                countsByState[publication.StateAbbr]++;
+                            }
+                        }
+
+                        pubTable += Environment.NewLine + "**Total Publications:** " + publications.Count.ToString() + Environment.NewLine;
+
+                        sidebarTemplate = sidebarTemplate.Replace(@"$PUBTABLE$", pubTable);
+                    }
+                }
+
+                // Update the sidebar.  --Kris
+                // TODO - This throws "we need something here" if not everything is provided; fix in Reddit.NET later.  Must be an API regression.  Looks like they made some changes.  --Kris
+                Subreddit = Subreddit.About();
+                Subreddit.Update(true, Subreddit.SubredditData.AllOriginalContent, Subreddit.SubredditData.AllowDiscovery, Subreddit.SubredditData.AllowImages,
+                    true, true, Subreddit.SubredditData.AllowVideos, Subreddit.SubredditData.CollapseDeletedComments, sidebarTemplate, true, false, "",
+                    Subreddit.SubredditData.HeaderTitle, Subreddit.SubredditData.HideAds, Subreddit.SubredditData.KeyColor, Subreddit.SubredditData.Lang,
+                    "any", Subreddit.Name, Subreddit.SubredditData.OriginalContentTagEnabled, Subreddit.SubredditData.Over18, Subreddit.SubredditData.PublicDescription,
+                    Subreddit.SubredditData.ShowMedia, Subreddit.SubredditData.ShowMediaPreview, "low", "low", "low", Subreddit.SubredditData.SpoilersEnabled,
+                    Subreddit.Fullname, Subreddit.SubredditData.SubmitLinkLabel, Subreddit.SubredditData.SubmitText, Subreddit.SubredditData.SubmitTextLabel,
+                    Subreddit.SubredditData.SuggestedCommentSort, "", false, Subreddit.SubredditData.Title, "public", "modonly", Subreddit.SubredditData.CommentScoreHideMins,
+                    0, 0);
+
+                LastSidebarRefresh = DateTime.Now;
+
+                Log("Sidebar refresh complete.");
+            }
+        }
+
+        private IList<Publication> GetPublications(int retry = 30)
+        {
+            try
+            {
+                string res = Request.ExecuteRequest(Request.Prepare("/opmail/publications?enabled=1&orderBy=stateAbbr&limit=1000"));
+                if (string.IsNullOrWhiteSpace(res))
+                {
+                    if ((--retry).Equals(0))
+                    {
+                        return null;
+                    }
+                    else
+                    {
+                        Thread.Sleep(60000);
+                        return GetPublications(retry);
+                    }
+                }
+
+                return JsonConvert.DeserializeObject<IList<Publication>>(res);
+            }
+            catch (Exception ex)
+            {
+                if ((--retry).Equals(0))
+                {
+                    throw ex;
+                }
+                else
+                {
+                    Thread.Sleep(60000);
+                    return GetPublications(retry);
+                }
+            }
         }
 
         private void ScanPosts()
