@@ -1,5 +1,6 @@
 ﻿using Bern_Ed.Structures;
 using System;
+using Xamarin.Essentials;
 using Xamarin.Forms;
 
 namespace Bern_Ed.Grids
@@ -198,14 +199,18 @@ namespace Bern_Ed.Grids
                     VerticalOptions = LayoutOptions.StartAndExpand
                 }, 0, 8);
 
-            Grid.Children.Add(
-                new Label
-                {
-                    Text = publication.Website,
-                    TextColor = Color.Black,
-                    FontSize = Device.GetNamedSize(NamedSize.Small, typeof(Label)),
-                    VerticalOptions = LayoutOptions.StartAndExpand
-                }, 1, 8);
+            Label labelWebsite = new Label
+            {
+                Text = publication.Website,
+                TextColor = Color.Blue,
+                TextDecorations = TextDecorations.Underline,
+                FontSize = Device.GetNamedSize(NamedSize.Small, typeof(Label)),
+                VerticalOptions = LayoutOptions.StartAndExpand
+            };
+            TapGestureRecognizer labelWebsiteTap = new TapGestureRecognizer();
+            labelWebsiteTap.Tapped += C_URLClicked;
+
+            Grid.Children.Add(labelWebsite, 1, 8);
 
             Grid.Children.Add(
                 new Label
@@ -238,14 +243,23 @@ namespace Bern_Ed.Grids
                     VerticalOptions = LayoutOptions.StartAndExpand
                 }, 0, 10);
 
-            Grid.Children.Add(
-                new Label
-                {
-                    Text = publication.ContactURL,
-                    TextColor = Color.Black,
-                    FontSize = Device.GetNamedSize(NamedSize.Small, typeof(Label)),
-                    VerticalOptions = LayoutOptions.StartAndExpand
-                }, 1, 10);
+            Label labelSource = new Label
+            {
+                Text = publication.ContactURL,
+                TextColor = Color.Blue,
+                TextDecorations = TextDecorations.Underline,
+                FontSize = Device.GetNamedSize(NamedSize.Small, typeof(Label)),
+                VerticalOptions = LayoutOptions.StartAndExpand
+            };
+            TapGestureRecognizer labelSourceTap = new TapGestureRecognizer();
+            labelSourceTap.Tapped += C_URLClicked;
+
+            Grid.Children.Add(labelSource, 1, 10);
+        }
+
+        public void C_URLClicked(object sender, EventArgs e)
+        {
+            Launcher.OpenAsync(((Label)sender).Text);  // Opens URL in the default browser.  --Kris
         }
     }
 }
